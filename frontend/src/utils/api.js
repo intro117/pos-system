@@ -1,0 +1,61 @@
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: process.env.REACT_APP_API_URL || '/api',
+  timeout: 15000,
+});
+
+api.interceptors.response.use(
+  r => r.data,
+  e => Promise.reject(new Error(e.response?.data?.detail || e.message || 'Error'))
+);
+
+export const productosAPI = {
+  listar:      (p)    => api.get('/productos/', { params: p }),
+  obtener:     (id)   => api.get(`/productos/${id}`),
+  crear:       (form) => api.post('/productos/', form),
+  actualizar:  (id,f) => api.put(`/productos/${id}`, f),
+  borrar:      (id)   => api.delete(`/productos/${id}`),
+  ajustarStock:(id,d) => api.post(`/productos/${id}/inventario`, d),
+  movimientos: (id)   => api.get(`/productos/${id}/movimientos`),
+  categorias:  ()     => api.get('/productos/categorias'),
+  crearCat:    (d)    => api.post('/productos/categorias', d),
+};
+
+export const ventasAPI = {
+  crear:     (d)  => api.post('/ventas/', d),
+  listar:    (p)  => api.get('/ventas/', { params: p }),
+  detalle:   (id) => api.get(`/ventas/${id}`),
+  cancelar:  (id) => api.delete(`/ventas/${id}`),
+  corteDia:  ()   => api.get('/ventas/corte/hoy'),
+  hacerCorte:(d)  => api.post('/ventas/corte/nuevo', d),
+};
+
+export const clientesAPI = {
+  listar:    (b)    => api.get('/clientes/', { params: { busqueda: b } }),
+  crear:     (d)    => api.post('/clientes/', d),
+  actualizar:(id,d) => api.put(`/clientes/${id}`, d),
+  borrar:    (id)   => api.delete(`/clientes/${id}`),
+};
+
+export const proveedoresAPI = {
+  listar: ()    => api.get('/proveedores/'),
+  crear:  (d)   => api.post('/proveedores/', d),
+  borrar: (id)  => api.delete(`/proveedores/${id}`),
+};
+
+export const inventarioAPI = {
+  movimientos: (l) => api.get('/inventario/movimientos', { params: { limit: l } }),
+  alertas:     ()  => api.get('/inventario/alertas'),
+};
+
+export const reportesAPI = {
+  dashboard: () => api.get('/reportes/dashboard'),
+};
+
+export const configAPI = {
+  get:    () => api.get('/config/'),
+  update: (d) => api.put('/config/', d),
+};
+
+export default api;
