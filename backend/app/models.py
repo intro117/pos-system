@@ -125,3 +125,14 @@ class CorteCaja(Base):
     num_cancelaciones=Column(Integer,default=0); total_cancelaciones=Column(Float,default=0.0)
     efectivo_contado=Column(Float,default=0.0); diferencia=Column(Float,default=0.0)
     notas=Column(Text,default=""); cerrado=Column(Boolean,default=False)
+
+# ── Usuarios del sistema ──────────────────────────────────
+class Usuario(Base):
+    __tablename__ = "usuarios"
+    id         = Column(Integer, primary_key=True, index=True)
+    username   = Column(String(50), unique=True, index=True, nullable=False)
+    nombre     = Column(String(100), nullable=False)
+    password   = Column(String(200), nullable=False)  # hash bcrypt
+    rol        = Column(String(20), default="cajero")  # admin | cajero
+    activo     = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
