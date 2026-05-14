@@ -9,18 +9,19 @@ from app.database import get_db
 from app.models import Usuario
 import os
 
-SECRET_KEY = os.getenv("SECRET_KEY", "pos-system-secret-key-cambiar-en-produccion")
+SECRET_KEY = os.getenv("SECRET_KEY", "pos-system-secret-key-2024")
 ALGORITHM  = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8 horas
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context   = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    # bcrypt tiene límite de 72 bytes
+    return pwd_context.hash(password[:72])
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    return pwd_context.verify(plain[:72], hashed)
 
 def create_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
@@ -28,7 +29,10 @@ def create_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> Usuario:
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+) -> Usuario:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Token inválido o expirado",
@@ -41,7 +45,10 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    user = db.query(Usuario).filter(Usuario.username == username, Usuario.activo == True).first()
+    user = db.query(Usuario).filter(
+        Usuario.username == username,
+        Usuario.activo == True
+    ).first()
     if user is None:
         raise credentials_exception
     return user
@@ -53,11 +60,25 @@ def require_admin(current_user: Usuario = Depends(get_current_user)) -> Usuario:
 
 def create_default_users(db: Session):
     """Crea usuarios por defecto si no existen"""
-    if not db.query(Usuario).first():
-        users = [
-            Usuario(username="admin",  nombre="Administrador", password=hash_password("admin123"),  rol="admin"),
-            Usuario(username="cajero", nombre="Cajero",        password=hash_password("cajero123"), rol="cajero"),
-        ]
-        db.add_all(users)
-        db.commit()
-        print("✓ Usuarios por defecto creados: admin/admin123 y cajero/cajero123")
+    try:
+        if not db.query(Usuario).first():
+            users = [
+                Usuario(
+                    username="admin",
+                    nombre="Administrador",
+                    password=hash_password("admin123"),
+                    rol="admin"
+                ),
+                Usuario(
+                    username="cajero",
+                    nombre="Cajero",
+                    password=hash_password("cajero123"),
+                    rol="cajero"
+                ),
+            ]
+            db.add_all(users)
+            db.commit()
+            print("✓ Usuarios por defecto creados")
+    except Exception as e:
+        print(f"⚠ No se pudieron crear usuarios por defecto: {e}")
+        db.rollback()
