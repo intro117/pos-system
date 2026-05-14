@@ -5,15 +5,12 @@ from app.models import Base, Usuario
 from app.routes import productos, ventas, inventario, clientes, proveedores, reportes, config
 from app.routes import auth as auth_router
 from app.routes import admin as admin_router
-from passlib.context import CryptContext
+from werkzeug.security import generate_password_hash
 
 Base.metadata.create_all(bind=engine)
 
-# Hash directo sin importar auth para evitar problemas de carga
-_pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 def _hash(pw: str) -> str:
-    return _pwd.hash(pw[:72])
+    return generate_password_hash(pw, method="pbkdf2:sha256")
 
 def init_users():
     db = SessionLocal()
@@ -27,8 +24,10 @@ def init_users():
             ])
             db.commit()
             print("✓ Usuarios creados: admin/admin123 | cajero/cajero123")
+        else:
+            print(f"→ Usuarios ya existen en la DB")
     except Exception as e:
-        print(f"✗ Error: {e}")
+        print(f"✗ Error creando usuarios: {e}")
         db.rollback()
     finally:
         db.close()
@@ -37,8 +36,13 @@ init_users()
 
 app = FastAPI(title="POS System API", version="1.0.0")
 
-app.add_middleware(CORSMiddleware, allow_origins=["*"],
-    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(auth_router.router,  prefix="/api/auth",       tags=["Auth"])
 app.include_router(admin_router.router, prefix="/api/admin",      tags=["Admin"])
@@ -66,7 +70,7 @@ def reset_users():
                     password=_hash("cajero123"), rol="cajero", activo=True),
         ])
         db.commit()
-        return {"ok": True, "msg": "Usuarios recreados correctamente"}
+        return {"ok": True, "msg": "Usuarios recreados: admin/admin123 | cajero/cajero123"}
     except Exception as e:
         db.rollback()
         return {"error": str(e)}
