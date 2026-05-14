@@ -42,6 +42,7 @@ export const authAPI = {
 };
 
 export const adminAPI = {
+  resetInventario: () => api.post("/admin/reset/inventario"),
   resetTodo:   () => api.post('/admin/reset?confirmar=RESET_CONFIRMADO'),
   resetVentas: () => api.post('/admin/reset/ventas?confirmar=RESET_CONFIRMADO'),
 };
