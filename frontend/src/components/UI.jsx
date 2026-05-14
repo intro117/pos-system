@@ -106,3 +106,30 @@ export const Alert = ({ type='info', children }) => {
       padding:12, marginBottom:12, fontSize:13, color:c }}>{children}</div>
   );
 };
+
+export const Confirm = ({ open, titulo, mensaje, onConfirm, onCancel, danger=true }) => {
+  if (!open) return null;
+  return (
+    <div style={{ position:'fixed',inset:0,background:'#00000090',display:'flex',
+      alignItems:'center',justifyContent:'center',zIndex:2000,padding:16 }}>
+      <div style={{ background:'#1e293b',border:`1px solid ${danger?'#ef444444':'#334155'}`,
+        borderRadius:14,padding:28,maxWidth:420,width:'100%' }}>
+        <div style={{ fontSize:28, textAlign:'center', marginBottom:12 }}>{danger?'⚠️':'❓'}</div>
+        <div style={{ fontWeight:700, fontSize:16, textAlign:'center', marginBottom:8, color:'#f1f5f9' }}>{titulo}</div>
+        <div style={{ fontSize:13, color:'#94a3b8', textAlign:'center', marginBottom:24, lineHeight:1.5 }}>{mensaje}</div>
+        <div style={{ display:'flex', gap:10 }}>
+          <button onClick={onCancel}
+            style={{ flex:1,padding:'9px 0',borderRadius:8,border:'1px solid #334155',
+              background:'transparent',color:'#94a3b8',cursor:'pointer',fontWeight:600,fontSize:13 }}>
+            Cancelar
+          </button>
+          <button onClick={onConfirm}
+            style={{ flex:1,padding:'9px 0',borderRadius:8,border:'none',
+              background:danger?'#dc2626':'#1d4ed8',color:'#fff',cursor:'pointer',fontWeight:700,fontSize:13 }}>
+            {danger?'Sí, eliminar':'Confirmar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
