@@ -1,11 +1,27 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { productosAPI, ventasAPI, inventarioAPI, configAPI } from './utils/api';
+import { getUser, clearSession, isAdmin } from './utils/auth';
 import { fmt } from './utils/format';
-import { Card, Btn, Badge, Alert, Modal, Input, Select, Stat, Table } from './components/UI';
+import { Card, Btn, Badge, Alert, Modal, Input, Select, Stat, Table, Confirm } from './components/UI';
+import Login      from './pages/Login';
 import Productos  from './pages/Productos';
 import Clientes   from './pages/Clientes';
 import Proveedores from './pages/Proveedores';
 import Reportes   from './pages/Reportes';
+import Admin      from './pages/Admin';
+
+// ── Tabs por rol ───────────────────────────────────────────
+const ALL_TABS = [
+  { id:'pos',         label:'🛒 POS',        title:'Punto de Venta',  roles:['admin','cajero'] },
+  { id:'inventario',  label:'📦 Inventario',  title:'Inventario',      roles:['admin'] },
+  { id:'corte',       label:'💰 Corte',       title:'Corte del Día',   roles:['admin','cajero'] },
+  { id:'productos',   label:'🏷️ Productos',   title:'Catálogo',        roles:['admin'] },
+  { id:'clientes',    label:'👥 Clientes',    title:'Clientes',        roles:['admin'] },
+  { id:'proveedores', label:'🚚 Proveedores', title:'Proveedores',     roles:['admin'] },
+  { id:'reportes',    label:'📊 Reportes',    title:'Reportes',        roles:['admin'] },
+  { id:'config',      label:'⚙️ Config',      title:'Configuración',   roles:['admin'] },
+  { id:'admin',       label:'🔐 Admin',       title:'Administración',  roles:['admin'] },
+];
 
 // ── POS ────────────────────────────────────────────────────
 function POS({ config, productos, categorias, recargar }) {
@@ -19,6 +35,7 @@ function POS({ config, productos, categorias, recargar }) {
   const [error,      setError]      = useState('');
   const [loading,    setLoading]    = useState(false);
   const sym = config?.simbolo_moneda || '$';
+  const user = getUser();
 
   const prods = productos.filter(p => {
     const t = !busqueda || p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || p.codigo.includes(busqueda);
@@ -28,18 +45,17 @@ function POS({ config, productos, categorias, recargar }) {
 
   const agregar = p => setCarrito(prev => {
     const ex = prev.find(i => i.producto_id === p.id);
-    if (ex) return prev.map(i => i.producto_id === p.id ? { ...i, cantidad: i.cantidad + 1 } : i);
-    return [...prev, { producto_id:p.id, nombre:p.nombre, precio_unitario:p.precio_venta,
-      iva_porcentaje:p.aplica_iva?p.porcentaje_iva:0, cantidad:1, descuento:0 }];
+    if (ex) return prev.map(i => i.producto_id===p.id ? {...i,cantidad:i.cantidad+1} : i);
+    return [...prev,{producto_id:p.id,nombre:p.nombre,precio_unitario:p.precio_venta,
+      iva_porcentaje:p.aplica_iva?p.porcentaje_iva:0,cantidad:1,descuento:0}];
   });
+  const quitar   = id    => setCarrito(p=>p.filter(i=>i.producto_id!==id));
+  const cambiarQ = (id,d)=> setCarrito(p=>p.map(i=>i.producto_id===id?{...i,cantidad:Math.max(0.5,i.cantidad+d)}:i));
 
-  const quitar   = id    => setCarrito(p => p.filter(i => i.producto_id !== id));
-  const cambiarQ = (id,d)=> setCarrito(p => p.map(i => i.producto_id===id?{...i,cantidad:Math.max(0.5,i.cantidad+d)}:i));
-
-  const subtotal  = carrito.reduce((s,i) => s + i.precio_unitario*i.cantidad*(1-i.descuento/100), 0);
-  const descuento = subtotal * descGlobal / 100;
-  const ivaAmt    = carrito.reduce((s,i) => s+(i.precio_unitario*i.cantidad*(1-i.descuento/100))*i.iva_porcentaje/100,0)*(1-descGlobal/100);
-  const total     = subtotal - descuento + ivaAmt;
+  const subtotal  = carrito.reduce((s,i)=>s+i.precio_unitario*i.cantidad*(1-i.descuento/100),0);
+  const descuento = subtotal*descGlobal/100;
+  const ivaAmt    = carrito.reduce((s,i)=>s+(i.precio_unitario*i.cantidad*(1-i.descuento/100))*i.iva_porcentaje/100,0)*(1-descGlobal/100);
+  const total     = subtotal-descuento+ivaAmt;
   const cambio    = Math.max(0,(parseFloat(recibido)||0)-total);
 
   const cobrar = async () => {
@@ -47,13 +63,13 @@ function POS({ config, productos, categorias, recargar }) {
     setLoading(true); setError('');
     try {
       const res = await ventasAPI.crear({
-        items: carrito, metodo_pago: metodo,
-        monto_recibido: metodo==='efectivo'?(parseFloat(recibido)||total):total,
-        descuento: descGlobal, cajero:'Admin',
+        items:carrito, metodo_pago:metodo,
+        monto_recibido:metodo==='efectivo'?(parseFloat(recibido)||total):total,
+        descuento:descGlobal, cajero:user?.nombre||'Cajero',
       });
-      setTicket({...res, items:carrito, negocio:config?.nombre_negocio, sym});
+      setTicket({...res,items:carrito,negocio:config?.nombre_negocio,sym,cajero:user?.nombre});
       setCarrito([]); setRecibido(''); setDescGlobal(0); recargar();
-    } catch(e) { setError(e.message); }
+    } catch(e){ setError(e.message); }
     setLoading(false);
   };
 
@@ -61,13 +77,13 @@ function POS({ config, productos, categorias, recargar }) {
     <div style={{maxWidth:400,margin:'0 auto'}}>
       <Card style={{fontFamily:'monospace',textAlign:'center'}}>
         <div style={{fontSize:18,fontWeight:700}}>🧾 {ticket.negocio}</div>
-        <div style={{fontSize:11,color:'#64748b',marginBottom:12}}>{new Date().toLocaleString('es-MX')}</div>
+        <div style={{fontSize:11,color:'#64748b',marginBottom:4}}>{new Date().toLocaleString('es-MX')}</div>
+        <div style={{fontSize:11,color:'#64748b',marginBottom:12}}>Cajero: {ticket.cajero}</div>
         <div style={{fontSize:12,marginBottom:8}}>Folio: <b>{ticket.folio}</b></div>
         <hr style={{border:'none',borderTop:'1px dashed #334155',margin:'8px 0'}}/>
         {ticket.items.map((i,idx)=>(
           <div key={idx} style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:3}}>
-            <span>{i.nombre} × {i.cantidad}</span>
-            <span>{fmt(i.precio_unitario*i.cantidad,sym)}</span>
+            <span>{i.nombre} × {i.cantidad}</span><span>{fmt(i.precio_unitario*i.cantidad,sym)}</span>
           </div>
         ))}
         <hr style={{border:'none',borderTop:'1px dashed #334155',margin:'8px 0'}}/>
@@ -78,7 +94,7 @@ function POS({ config, productos, categorias, recargar }) {
           <div style={{display:'flex',justifyContent:'space-between',fontWeight:700,fontSize:15,margin:'6px 0'}}><span>TOTAL</span><span style={{color:'#22c55e'}}>{fmt(ticket.total,sym)}</span></div>
           <div style={{display:'flex',justifyContent:'space-between'}}><span>Cambio</span><span style={{color:'#22c55e',fontWeight:700}}>{fmt(ticket.cambio,sym)}</span></div>
         </div>
-        <div style={{marginTop:12,fontSize:11,color:'#64748b'}}>¡Gracias por su compra!</div>
+        <div style={{marginTop:12,fontSize:11,color:'#64748b'}}>{config?.ticket_footer||'¡Gracias por su compra!'}</div>
         <div style={{display:'flex',gap:8,marginTop:14}}>
           <Btn onClick={()=>window.print()} color="#374151" style={{flex:1}}>🖨️ Imprimir</Btn>
           <Btn onClick={()=>setTicket(null)} style={{flex:1}}>+ Nueva venta</Btn>
@@ -124,7 +140,6 @@ function POS({ config, productos, categorias, recargar }) {
           </div>
         </div>
       </div>
-
       <Card style={{display:'flex',flexDirection:'column',overflow:'hidden'}}>
         <div style={{fontWeight:700,fontSize:15,marginBottom:10}}>🛒 Carrito</div>
         {error&&<Alert type="error">{error}</Alert>}
@@ -139,7 +154,7 @@ function POS({ config, productos, categorias, recargar }) {
               <div style={{display:'flex',alignItems:'center',gap:3}}>
                 <button onClick={()=>cambiarQ(item.producto_id,-1)} style={{width:22,height:22,borderRadius:6,border:'1px solid #334155',background:'#0f172a',color:'#e2e8f0',cursor:'pointer',fontWeight:700}}>-</button>
                 <span style={{minWidth:24,textAlign:'center',fontWeight:700,fontSize:13}}>{item.cantidad}</span>
-                <button onClick={()=>cambiarQ(item.producto_id,1)}  style={{width:22,height:22,borderRadius:6,border:'1px solid #334155',background:'#0f172a',color:'#e2e8f0',cursor:'pointer',fontWeight:700}}>+</button>
+                <button onClick={()=>cambiarQ(item.producto_id,1)} style={{width:22,height:22,borderRadius:6,border:'1px solid #334155',background:'#0f172a',color:'#e2e8f0',cursor:'pointer',fontWeight:700}}>+</button>
               </div>
               <span style={{fontSize:12,fontWeight:700,minWidth:60,textAlign:'right'}}>{fmt(item.precio_unitario*item.cantidad,sym)}</span>
               <button onClick={()=>quitar(item.producto_id)} style={{background:'none',border:'none',color:'#ef4444',cursor:'pointer',fontSize:16}}>✕</button>
@@ -182,16 +197,16 @@ function POS({ config, productos, categorias, recargar }) {
 
 // ── Inventario ─────────────────────────────────────────────
 function Inventario({ productos, recargar }) {
-  const [modal,  setModal]  = useState(false);
-  const [prod,   setProd]   = useState(null);
-  const [form,   setForm]   = useState({tipo:'entrada',cantidad:1,motivo:'',costo_unitario:0});
-  const [filtro, setFiltro] = useState('');
-  const [error,  setError]  = useState('');
+  const [modal,   setModal]   = useState(false);
+  const [prod,    setProd]    = useState(null);
+  const [form,    setForm]    = useState({tipo:'entrada',cantidad:1,motivo:'',costo_unitario:0});
+  const [filtro,  setFiltro]  = useState('');
+  const [error,   setError]   = useState('');
   const alertas = productos.filter(p=>p.alerta_stock&&!p.es_servicio);
   const abrir = p => { setProd(p); setForm({tipo:'entrada',cantidad:1,motivo:'',costo_unitario:0}); setModal(true); };
   const aplicar = async () => {
-    try { await productosAPI.ajustarStock(prod.id, form); setModal(false); recargar(); }
-    catch(e) { setError(e.message); }
+    try { await productosAPI.ajustarStock(prod.id,form); setModal(false); recargar(); }
+    catch(e){ setError(e.message); }
   };
   const cols = [
     {key:'codigo',      label:'Código',  style:{fontFamily:'monospace',color:'#64748b',fontSize:12}},
@@ -206,7 +221,7 @@ function Inventario({ productos, recargar }) {
     <div>
       {alertas.length>0&&<Alert type="error" style={{marginBottom:16}}>⚠️ <b>{alertas.length} producto(s) con stock bajo:</b> {alertas.map(p=>p.nombre).join(', ')}</Alert>}
       <div style={{display:'flex',gap:10,marginBottom:16}}>
-        <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="🔍 Filtrar inventario..."
+        <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="🔍 Filtrar..."
           style={{flex:1,padding:'8px 12px',borderRadius:8,border:'1px solid #334155',background:'#0f172a',color:'#e2e8f0',fontSize:13}}/>
       </div>
       <Card><Table cols={cols} rows={productos.filter(p=>!filtro||p.nombre.toLowerCase().includes(filtro.toLowerCase()))} empty="Sin productos."/></Card>
@@ -222,8 +237,7 @@ function Inventario({ productos, recargar }) {
         </div>
         <Input label={form.tipo==='ajuste'?'Nuevo stock total':'Cantidad'} type="number"
           value={form.cantidad} onChange={e=>setForm(f=>({...f,cantidad:parseFloat(e.target.value)||0}))}/>
-        {form.tipo==='entrada'&&<Input label="Costo unitario" type="number" value={form.costo_unitario}
-          onChange={e=>setForm(f=>({...f,costo_unitario:parseFloat(e.target.value)||0}))}/>}
+        {form.tipo==='entrada'&&<Input label="Costo unitario" type="number" value={form.costo_unitario} onChange={e=>setForm(f=>({...f,costo_unitario:parseFloat(e.target.value)||0}))}/>}
         <Input label="Motivo" value={form.motivo} onChange={e=>setForm(f=>({...f,motivo:e.target.value}))} placeholder="Opcional"/>
         {error&&<Alert type="error">{error}</Alert>}
         <div style={{display:'flex',gap:8,marginTop:8}}>
@@ -235,31 +249,28 @@ function Inventario({ productos, recargar }) {
   );
 }
 
-// ── Corte de caja ──────────────────────────────────────────
+// ── Corte ──────────────────────────────────────────────────
 function Corte({ config }) {
-  const sym = config?.simbolo_moneda || '$';
-  const [resumen, setResumen] = useState(null);
-  const [form,    setForm]    = useState({fondo_inicial:500,efectivo_contado:'',cajero:'Admin',notas:''});
-  const [hecho,   setHecho]   = useState(false);
-  const [result,  setResult]  = useState(null);
-  const [error,   setError]   = useState('');
-  useEffect(() => { ventasAPI.corteDia().then(setResumen).catch(e=>setError(e.message)); }, []);
-  const diferencia = parseFloat(form.efectivo_contado||0)-((resumen?.efectivo||0)+form.fondo_inicial);
-  const hacer = async () => {
-    try { const r=await ventasAPI.hacerCorte(form); setResult(r); setHecho(true); }
-    catch(e) { setError(e.message); }
-  };
+  const sym = config?.simbolo_moneda||'$';
+  const [resumen,setResumen]=useState(null);
+  const [form,setForm]=useState({fondo_inicial:500,efectivo_contado:'',cajero:getUser()?.nombre||'Admin',notas:''});
+  const [hecho,setHecho]=useState(false);
+  const [result,setResult]=useState(null);
+  const [error,setError]=useState('');
+  useEffect(()=>{ ventasAPI.corteDia().then(setResumen).catch(e=>setError(e.message)); },[]);
+  const diferencia=parseFloat(form.efectivo_contado||0)-((resumen?.efectivo||0)+form.fondo_inicial);
+  const hacer=async()=>{ try{ const r=await ventasAPI.hacerCorte(form); setResult(r); setHecho(true); } catch(e){ setError(e.message); } };
   return (
     <div style={{maxWidth:760,margin:'0 auto'}}>
       {error&&<Alert type="error">{error}</Alert>}
       {resumen&&<>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:12,marginBottom:20}}>
-          <Stat label="Ventas hoy"    value={resumen.num_ventas}       icon="🧾" color="#3b82f6"/>
-          <Stat label="Total ventas"  value={fmt(resumen.total_ventas,sym)} icon="💰" color="#22c55e"/>
-          <Stat label="IVA cobrado"   value={fmt(resumen.total_iva,sym)}    icon="📋" color="#f59e0b"/>
-          <Stat label="Efectivo"      value={fmt(resumen.efectivo,sym)}     icon="💵" color="#10b981"/>
-          <Stat label="Tarjeta"       value={fmt(resumen.tarjeta,sym)}      icon="💳" color="#8b5cf6"/>
-          <Stat label="Transferencia" value={fmt(resumen.transferencia,sym)}icon="🏦" color="#06b6d4"/>
+          <Stat label="Ventas hoy"   value={resumen.num_ventas}           icon="🧾" color="#3b82f6"/>
+          <Stat label="Total ventas" value={fmt(resumen.total_ventas,sym)} icon="💰" color="#22c55e"/>
+          <Stat label="IVA cobrado"  value={fmt(resumen.total_iva,sym)}    icon="📋" color="#f59e0b"/>
+          <Stat label="Efectivo"     value={fmt(resumen.efectivo,sym)}     icon="💵" color="#10b981"/>
+          <Stat label="Tarjeta"      value={fmt(resumen.tarjeta,sym)}      icon="💳" color="#8b5cf6"/>
+          <Stat label="Transfer."    value={fmt(resumen.transferencia,sym)} icon="🏦" color="#06b6d4"/>
         </div>
         <Card style={{marginBottom:16}}>
           <div style={{fontWeight:700,marginBottom:14}}>🔒 Cierre de caja</div>
@@ -301,25 +312,15 @@ function Corte({ config }) {
 }
 
 // ── App principal ──────────────────────────────────────────
-const TABS = [
-  {id:'pos',         label:'🛒 POS',       title:'Punto de Venta'},
-  {id:'inventario',  label:'📦 Inventario', title:'Inventario'},
-  {id:'corte',       label:'💰 Corte',      title:'Corte del Día'},
-  {id:'productos',   label:'🏷️ Productos',  title:'Catálogo'},
-  {id:'clientes',    label:'👥 Clientes',   title:'Clientes'},
-  {id:'proveedores', label:'🚚 Proveedores',title:'Proveedores'},
-  {id:'reportes',    label:'📊 Reportes',   title:'Reportes'},
-  {id:'config',      label:'⚙️ Config',     title:'Configuración'},
-];
-
 export default function App() {
-  const [tab,        setTab]     = useState('pos');
-  const [config,     setConfig]  = useState({nombre_negocio:'POS System',simbolo_moneda:'$',iva_porcentaje:16,color_primario:'#1d4ed8',logo_url:'',tipo_negocio:'retail'});
-  const [cfgForm,    setCfgForm] = useState({});
-  const [productos,  setProds]   = useState([]);
-  const [categorias, setCats]    = useState([]);
-  const [alertas,    setAlertas] = useState(0);
-  const [error,      setError]   = useState('');
+  const [user,       setUser]     = useState(getUser());
+  const [tab,        setTab]      = useState('pos');
+  const [config,     setConfig]   = useState({nombre_negocio:'POS System',simbolo_moneda:'$',iva_porcentaje:16,color_primario:'#1d4ed8',logo_url:'',tipo_negocio:'retail'});
+  const [cfgForm,    setCfgForm]  = useState({});
+  const [productos,  setProds]    = useState([]);
+  const [categorias, setCats]     = useState([]);
+  const [alertas,    setAlertas]  = useState(0);
+  const [error,      setError]    = useState('');
 
   const cargar = useCallback(async () => {
     try {
@@ -327,34 +328,62 @@ export default function App() {
         configAPI.get(), productosAPI.listar(), productosAPI.categorias(), inventarioAPI.alertas()
       ]);
       setConfig(cfg); setCfgForm(cfg); setProds(prods); setCats(cats); setAlertas(inv.length);
-    } catch(e) { setError('Error conectando al servidor. Verifica que el backend esté corriendo.'); }
+    } catch(e) { setError('Error conectando al servidor.'); }
   }, []);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => { if (user) cargar(); }, [user, cargar]);
 
-  const guardarConfig = async () => {
-    try { const c=await configAPI.update(cfgForm); setConfig(c); alert('✓ Configuración guardada'); }
-    catch(e) { setError(e.message); }
+  const handleLogin = (res) => {
+    setUser({ username:res.username, nombre:res.nombre, rol:res.rol });
+    setTab('pos');
   };
 
+  const handleLogout = () => {
+    clearSession();
+    setUser(null);
+  };
+
+  if (!user) return <Login onLogin={handleLogin}/>;
+
+  const rol   = user.rol;
+  const tabs  = ALL_TABS.filter(t => t.roles.includes(rol));
   const primary = config.color_primario || '#1d4ed8';
-  const tabActual = TABS.find(t=>t.id===tab);
+  const tabActual = tabs.find(t=>t.id===tab) || tabs[0];
+
+  // Si el tab actual no está permitido para el rol, ir al primero
+  if (!tabs.find(t=>t.id===tab)) setTab(tabs[0]?.id);
+
+  const guardarConfig = async () => {
+    try { const c=await configAPI.update(cfgForm); setConfig(c); alert('✓ Guardado'); }
+    catch(e){ setError(e.message); }
+  };
 
   return (
     <div style={{minHeight:'100vh',background:'#0f172a',color:'#e2e8f0'}}>
+      {/* Header */}
       <div style={{background:primary,padding:'10px 20px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
         <div style={{display:'flex',alignItems:'center',gap:12}}>
           {config.logo_url&&<img src={config.logo_url} alt="logo" style={{height:36,borderRadius:8,objectFit:'cover'}}/>}
           <div>
             <div style={{fontWeight:700,fontSize:16,color:'#fff'}}>{config.nombre_negocio}</div>
-            <div style={{fontSize:11,color:'#ffffff88'}}>{config.tipo_negocio} · {tabActual?.title}</div>
+            <div style={{fontSize:11,color:'#ffffff88'}}>{tabActual?.title}</div>
           </div>
         </div>
-        <div style={{fontSize:12,color:'#ffffff88'}}>{new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <div style={{textAlign:'right'}}>
+            <div style={{fontSize:13,color:'#fff',fontWeight:600}}>{user.nombre}</div>
+            <div style={{fontSize:11,color:'#ffffff88'}}>{rol==='admin'?'👑 Admin':'🧾 Cajero'}</div>
+          </div>
+          <button onClick={handleLogout}
+            style={{padding:'6px 12px',borderRadius:8,border:'1px solid #ffffff44',background:'transparent',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600}}>
+            Salir
+          </button>
+        </div>
       </div>
 
+      {/* Tabs */}
       <div style={{display:'flex',gap:2,padding:'8px 16px 0',background:'#1e293b',borderBottom:'1px solid #334155',overflowX:'auto'}}>
-        {TABS.map(t=>(
+        {tabs.map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id)}
             style={{padding:'8px 14px',borderRadius:'8px 8px 0 0',border:'none',cursor:'pointer',fontSize:13,fontWeight:600,whiteSpace:'nowrap',
               background:tab===t.id?'#0f172a':'transparent',color:tab===t.id?primary:'#94a3b8',
@@ -365,6 +394,7 @@ export default function App() {
         ))}
       </div>
 
+      {/* Contenido */}
       <div style={{padding:16}}>
         {error&&<Alert type="error" style={{marginBottom:16}}>{error}</Alert>}
         {tab==='pos'         && <POS config={config} productos={productos} categorias={categorias} recargar={cargar}/>}
@@ -374,6 +404,7 @@ export default function App() {
         {tab==='clientes'    && <Clientes/>}
         {tab==='proveedores' && <Proveedores/>}
         {tab==='reportes'    && <Reportes/>}
+        {tab==='admin'       && <Admin/>}
         {tab==='config'      && (
           <div style={{maxWidth:600}}>
             <Card style={{marginBottom:16}}>
