@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || '/api',
+  baseURL: 'https://pos-system-qa.onrender.com/api',
   timeout: 15000,
 });
 
@@ -21,7 +21,6 @@ export const productosAPI = {
   categorias:  ()     => api.get('/productos/categorias'),
   crearCat:    (d)    => api.post('/productos/categorias', d),
 };
-
 export const ventasAPI = {
   crear:     (d)  => api.post('/ventas/', d),
   listar:    (p)  => api.get('/ventas/', { params: p }),
@@ -30,32 +29,26 @@ export const ventasAPI = {
   corteDia:  ()   => api.get('/ventas/corte/hoy'),
   hacerCorte:(d)  => api.post('/ventas/corte/nuevo', d),
 };
-
 export const clientesAPI = {
   listar:    (b)    => api.get('/clientes/', { params: { busqueda: b } }),
   crear:     (d)    => api.post('/clientes/', d),
   actualizar:(id,d) => api.put(`/clientes/${id}`, d),
   borrar:    (id)   => api.delete(`/clientes/${id}`),
 };
-
 export const proveedoresAPI = {
   listar: ()    => api.get('/proveedores/'),
   crear:  (d)   => api.post('/proveedores/', d),
   borrar: (id)  => api.delete(`/proveedores/${id}`),
 };
-
 export const inventarioAPI = {
   movimientos: (l) => api.get('/inventario/movimientos', { params: { limit: l } }),
   alertas:     ()  => api.get('/inventario/alertas'),
 };
-
 export const reportesAPI = {
   dashboard: () => api.get('/reportes/dashboard'),
 };
-
 export const configAPI = {
   get:    () => api.get('/config/'),
   update: (d) => api.put('/config/', d),
 };
-
 export default api;
