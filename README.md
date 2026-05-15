@@ -1,6 +1,9 @@
+cd ~/pos-system
+
+cat > README.md << 'EOF'
 # 🏪 POS System
 
-> Sistema de punto de venta completo, modular y personalizable.  
+> Sistema de punto de venta completo, modular y personalizable.
 > Funciona en localhost, QA gratuito en la nube y producción con dominio propio.
 
 ![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)
@@ -12,16 +15,31 @@
 
 ## 📋 Módulos
 
-| Módulo | Descripción |
-|---|---|
-| 🛒 **POS** | Punto de venta — carrito, cobro, cambio, ticket imprimible |
-| 📦 **Inventario** | Entradas, salidas, ajustes y alertas de stock mínimo |
-| 💰 **Corte de caja** | Resumen del día, cuadre de efectivo y cierre |
-| 🏷️ **Productos** | Catálogo con imágenes, categorías e IVA configurable |
-| 👥 **Clientes** | Base de datos con historial de compras y crédito |
-| 🚚 **Proveedores** | Contactos y órdenes de compra |
-| 📊 **Reportes** | Dashboard con gráficas de ventas y productos |
-| ⚙️ **Config** | Logo, colores, IVA, nombre y tipo de negocio |
+| Módulo | Admin | Cajero |
+|---|---|---|
+| 🛒 POS — punto de venta | ✅ | ✅ |
+| 💰 Corte de caja | ✅ | ✅ |
+| 📦 Inventario | ✅ | ❌ |
+| 🏷️ Productos + imágenes | ✅ | ❌ |
+| 👥 Clientes | ✅ | ❌ |
+| 🚚 Proveedores | ✅ | ❌ |
+| 📊 Reportes y gráficas | ✅ | ❌ |
+| ⚙️ Configuración del negocio | ✅ | ❌ |
+| 🔐 Panel de administración | ✅ | ❌ |
+
+---
+
+## 🔐 Usuarios por defecto
+
+Al iniciar el sistema por primera vez se crean automáticamente:
+
+| Usuario | Password | Rol | Acceso |
+|---|---|---|---|
+| `admin` | `admin123` | Administrador | Todo el sistema |
+| `cajero` | `cajero123` | Cajero | Solo POS y Corte |
+
+> ⚠️ Cambia los passwords por defecto antes de usar en producción.
+> Ve a 🔐 Admin → selecciona el usuario → Cambiar contraseña.
 
 ---
 
@@ -32,7 +50,7 @@
 - Docker Desktop con integración WSL habilitada
 - Git
 
-### Instalación en un comando
+### Instalación
 
 ```bash
 git clone https://github.com/TU_USUARIO/pos-system.git
@@ -47,7 +65,7 @@ bash setup_all.sh
 | Dashboard | http://localhost:3000 |
 | API REST | http://localhost:8000/api |
 | API Docs | http://localhost:8000/docs |
-| MinIO | http://localhost:9001 |
+| MinIO (imágenes) | http://localhost:9001 |
 
 ### Comandos útiles
 ```bash
@@ -60,31 +78,18 @@ docker compose down -v      # reset completo (borra datos)
 
 ---
 
-## ☁️ OPCIÓN 2 — QA Gratuito en la nube (Render.com)
+## ☁️ OPCIÓN 2 — QA Gratuito en Render.com
 
-Para mostrar demos a clientes sin costo. Servicios usados:
-- **Render.com** — backend FastAPI + frontend React (gratis)
-- **Render PostgreSQL** — base de datos gratuita
-
-### Paso 1 — Preparar el código
-
-```bash
-# Clonar el repo
-git clone https://github.com/TU_USUARIO/pos-system.git
-cd pos-system
-```
-
-### Paso 2 — Crear base de datos en Render
+### Paso 1 — Crear base de datos PostgreSQL
 
 1. Ve a **https://render.com** → Sign up con GitHub
 2. **New → PostgreSQL**
    - Name: `pos-system-db`
-   - Region: Oregon (US West)
+   - Region: Oregon
    - Plan: **Free**
-3. Clic **Create Database**
-4. Copia la **Internal Database URL** (la necesitas en el paso 3)
+3. Copia la **Internal Database URL**
 
-### Paso 3 — Desplegar el backend
+### Paso 2 — Desplegar el backend
 
 1. **New → Web Service**
 2. Connect repo: `pos-system`
@@ -97,179 +102,214 @@ cd pos-system
    ```
 4. **Environment Variables:**
    ```
-   DATABASE_URL    = [Internal Database URL del paso 2]
-   MINIO_URL       = http://localhost:9000
+   DATABASE_URL     = [Internal Database URL del paso 1]
+   MINIO_URL        = http://localhost:9000
    MINIO_ACCESS_KEY = minioadmin
    MINIO_SECRET_KEY = minioadmin123
+   SECRET_KEY       = una-clave-secreta-larga-aqui
    ```
 5. Clic **Create Web Service**
-6. Espera ~3 minutos — anota la URL: `https://pos-system-qa.onrender.com`
 
-### Paso 4 — Actualizar el frontend con la URL del backend
+> ⚠️ **Nota importante:** La URL de la DB debe empezar con `postgresql://`
+> Si Render la entrega como `postgres://`, el sistema la convierte automáticamente.
+
+### Paso 3 — Verificar usuarios
+
+Después del primer deploy, ejecuta:
 
 ```bash
-# En tu terminal WSL, edita frontend/src/utils/api.js
-# Cambia la baseURL por tu URL de Render:
-# baseURL: 'https://TU-SERVICIO.onrender.com/api'
-
-git add frontend/src/utils/api.js
-git commit -m "feat: apuntar frontend a backend de Render"
-git push origin main
+curl -X POST https://TU-SERVICIO.onrender.com/api/reset-users-emergency
 ```
 
-### Paso 5 — Desplegar el frontend
+Esto crea los usuarios por defecto `admin/admin123` y `cajero/cajero123`.
 
-1. **New → Static Site**
-2. Connect repo: `pos-system`
+### Paso 4 — Desplegar el frontend
+
+1. Edita `frontend/src/utils/api.js` — cambia `baseURL` a la URL de tu backend
+2. **New → Static Site** en Render
 3. Configurar:
    ```
-   Name:              pos-system-frontend
    Root Directory:    frontend
    Build Command:     npm install --legacy-peer-deps && npm install ajv@^8.12.0 ajv-keywords@^5.1.0 --legacy-peer-deps && npm run build
    Publish Directory: build
    ```
-4. **Environment Variables:**
+4. Variables:
    ```
-   CI                  = false
-   GENERATE_SOURCEMAP  = false
+   CI                 = false
+   GENERATE_SOURCEMAP = false
    ```
-5. Clic **Create Static Site**
-6. Espera ~5 minutos → tu URL pública estará lista
 
-### Resultado QA
-```
-Frontend: https://pos-system-frontend-XXXX.onrender.com
-Backend:  https://pos-system-qa.onrender.com/api
-```
-
-> ⚠️ **Limitación del plan gratuito:** Los servicios se "duermen" después de 15 minutos sin uso. La primera carga tarda ~30 segundos en despertar. Para demos en vivo, abre el link 1 minuto antes.
+> ⚠️ **Limitación del plan gratuito:** Los servicios se duermen tras 15 min sin uso.
+> La primera carga tarda ~30 segundos. Abre el link 1 min antes de una demo.
 
 ---
 
 ## 🚀 OPCIÓN 3 — Producción con dominio propio (VPS)
 
-Para clientes reales con dominio propio y alta disponibilidad.
+### Proveedores recomendados
 
-### Requisitos
-- VPS Ubuntu 22.04 (Hetzner €3.29/mes, DigitalOcean $6/mes, Contabo €4.99/mes)
-- Dominio propio (~$10/año en Namecheap o GoDaddy)
-- SSL gratuito con Let's Encrypt (Certbot)
+| Proveedor | Plan | Precio | RAM |
+|---|---|---|---|
+| **Hetzner** | CX22 | €3.29/mes | 4GB |
+| **DigitalOcean** | Droplet | $6/mes | 1GB |
+| **Contabo** | VPS S | €4.99/mes | 8GB |
 
-### Paso 1 — Configurar el VPS
+### Setup en VPS Ubuntu 22.04
 
 ```bash
-# Conectar al VPS por SSH
+# Conectar al VPS
 ssh root@IP_DEL_VPS
-
-# Actualizar sistema
-apt update && apt upgrade -y
 
 # Instalar Docker
 curl -fsSL https://get.docker.com | sh
-usermod -aG docker $USER
-
-# Instalar Docker Compose
 apt install -y docker-compose-plugin git
 
-# Clonar el proyecto
+# Clonar proyecto
 git clone https://github.com/TU_USUARIO/pos-system.git
 cd pos-system
-```
 
-### Paso 2 — Configurar variables de producción
-
-```bash
-# Crear archivo de variables
-cat > .env.prod << 'EOF'
-POSTGRES_PASSWORD=PASSWORD_MUY_SEGURO_AQUI
-MINIO_ROOT_PASSWORD=MINIO_PASSWORD_SEGURO
-SECRET_KEY=clave-secreta-larga-aleatoria
-EOF
-
-# Levantar sistema
+# Levantar
 docker compose up -d --build
 
 # Verificar
-docker compose ps
 curl http://localhost:8000/api/health
 ```
 
-### Paso 3 — Configurar dominio
-
-En tu proveedor de dominio, agrega un registro DNS:
-```
-Tipo: A
-Nombre: @ (o tu subdominio)
-Valor: IP_DE_TU_VPS
-TTL: 3600
-```
-
-### Paso 4 — Configurar Nginx + SSL
+### Nginx + SSL gratuito
 
 ```bash
-# Instalar Nginx
-apt install -y nginx
+apt install -y nginx certbot python3-certbot-nginx
 
-# Crear configuración
-cat > /etc/nginx/sites-available/pos << 'EOF'
+cat > /etc/nginx/sites-available/pos << 'NGINX'
 server {
     listen 80;
     server_name tudominio.com www.tudominio.com;
-
-    # Frontend
     location / {
         proxy_pass http://localhost:3000;
         proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
     }
-
-    # Backend API
     location /api/ {
         proxy_pass http://localhost:8000/api/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
         client_max_body_size 10M;
     }
 }
-EOF
+NGINX
 
 ln -s /etc/nginx/sites-available/pos /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
 
-# Instalar SSL gratuito
-apt install -y certbot python3-certbot-nginx
+# SSL gratis
 certbot --nginx -d tudominio.com -d www.tudominio.com
 ```
 
-### Resultado producción
-```
-https://tudominio.com       → Dashboard completo
-https://tudominio.com/api   → API REST
-https://tudominio.com/api/docs → Documentación
-```
-
-### Actualizar en producción
-```bash
-cd pos-system
-git pull
-docker compose up -d --build
-```
+**Resultado:** `https://tudominio.com` con SSL ✓
 
 ---
 
-## 🏗️ Stack tecnológico
+## 🔧 Stack tecnológico
 
-| Capa | Tecnología | Versión |
+| Capa | Tecnología | Notas |
 |---|---|---|
-| Backend | FastAPI | 0.110 |
-| Base de datos | PostgreSQL | 15 |
-| ORM | SQLAlchemy | 2.0 |
-| Imágenes | MinIO | Latest |
-| Frontend | React | 18.2 |
-| Gráficas | Recharts | 2.12 |
-| HTTP Client | Axios | 1.6 |
-| Servidor web | Nginx | Alpine |
-| Contenedores | Docker Compose | 3.8 |
+| Backend | FastAPI 0.110 | API REST async |
+| Auth | JWT + Werkzeug | Tokens 8h, hashing seguro |
+| ORM | SQLAlchemy 2.0 | Migraciones automáticas |
+| Base de datos | PostgreSQL 15 | |
+| Imágenes | MinIO | S3-compatible, self-hosted |
+| Frontend | React 18 | |
+| HTTP Client | Axios | Con interceptor JWT |
+| Gráficas | Recharts | |
+| Servidor web | Nginx Alpine | |
+| Contenedores | Docker Compose | |
+
+---
+
+## 🔐 Login y roles
+
+### Usuarios por defecto
+| Usuario | Password | Rol | Acceso |
+|---|---|---|---|
+| `admin` | `admin123` | Administrador | Todo el sistema |
+| `cajero` | `cajero123` | Cajero | Solo POS y Corte |
+
+> ⚠️ Cambia los passwords en producción desde 🔐 Admin → usuario → Cambiar contraseña
+
+### Permisos por rol
+| Módulo | Admin | Cajero |
+|---|---|---|
+| 🛒 POS | ✅ | ✅ |
+| 💰 Corte de caja | ✅ | ✅ |
+| 📦 Inventario | ✅ | ❌ |
+| 🏷️ Productos | ✅ | ❌ |
+| 👥 Clientes | ✅ | ❌ |
+| 🚚 Proveedores | ✅ | ❌ |
+| 📊 Reportes | ✅ | ❌ |
+| ⚙️ Config | ✅ | ❌ |
+| 🔐 Admin | ✅ | ❌ |
+
+---
+
+## 🗑️ Reset de datos (solo Admin)
+
+Disponible en la pestaña **🔐 Admin**. Tres opciones con confirmación obligatoria:
+
+| Opción | Qué borra | Qué conserva |
+|---|---|---|
+| 🧾 Reset ventas | Ventas, cortes, detalles | Productos, clientes, proveedores |
+| 📦 Reset inventario | Productos, categorías, movimientos | Ventas, clientes, proveedores |
+| ⚠️ Reset total | Todo | Solo usuarios del sistema |
+
+El reset usa `DELETE` con SQLAlchemy en el orden correcto de foreign keys — funciona igual en localhost, QA y producción.
+
+---
+
+## 🛠️ Problemas conocidos y soluciones
+
+### Error: `ajv/dist/compile/codegen` en build de React
+```
+Causa: Incompatibilidad react-scripts 5 + Node 20
+Solución: Usar node:18-alpine en Dockerfile del frontend
+          Agregar ajv@^8 en package.json
+```
+
+### Error: `307 Temporary Redirect` en rutas de FastAPI
+```
+Causa: FastAPI redirige /api/config → /api/config/
+Solución: Usar / al final en todas las URLs del api.js del frontend
+```
+
+### Reset no borra datos en Render (TRUNCATE falla)
+```
+Causa: TRUNCATE con session_replication_role requiere permisos de superusuario
+       que Render no otorga en el plan gratuito
+Solución: El sistema usa DELETE con SQLAlchemy en orden correcto de foreign keys
+          Funciona en localhost, Render QA y VPS sin cambiar nada
+```
+
+### Login da 401 después del primer deploy
+```
+Causa: Los usuarios por defecto no se crearon correctamente
+Solución: Ejecutar el endpoint de emergencia (solo una vez):
+curl -X POST https://TU-SERVICIO.onrender.com/api/reset-users-emergency
+```
+
+### Error: `postgres://` no reconocido por SQLAlchemy
+```
+Causa: Render entrega URLs con postgres:// en lugar de postgresql://
+Solución: El database.py convierte automáticamente al iniciar
+```
+
+### Error: `password cannot be longer than 72 bytes` (bcrypt)
+```
+Causa: Incompatibilidad de versión de bcrypt en algunos entornos
+Solución: El sistema usa werkzeug (pbkdf2:sha256) en lugar de bcrypt
+```
+
+### Login da 401 después del primer deploy
+```
+Causa: Los usuarios por defecto no se crearon correctamente
+Solución: Ejecutar el endpoint de emergencia:
+curl -X POST https://TU-SERVICIO.onrender.com/api/reset-users-emergency
+```
 
 ---
 
@@ -287,3 +327,8 @@ docker compose up -d --build
 ## 📄 Licencia
 
 MIT — libre para uso personal y comercial.
+
+---
+
+*Stack: FastAPI · React 18 · PostgreSQL · Werkzeug · Docker · Nginx*
+
