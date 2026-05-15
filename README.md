@@ -1,7 +1,5 @@
-cd ~/pos-system
 
-cat > README.md << 'EOF'
-# 🏪 POS System
+#  POS System
 
 > Sistema de punto de venta completo, modular y personalizable.
 > Funciona en localhost, QA gratuito en la nube y producción con dominio propio.
@@ -29,7 +27,7 @@ cat > README.md << 'EOF'
 
 ---
 
-## 🔐 Usuarios por defecto
+##  Usuarios por defecto
 
 Al iniciar el sistema por primera vez se crean automáticamente:
 
@@ -38,12 +36,12 @@ Al iniciar el sistema por primera vez se crean automáticamente:
 | `admin` | `admin123` | Administrador | Todo el sistema |
 | `cajero` | `cajero123` | Cajero | Solo POS y Corte |
 
-> ⚠️ Cambia los passwords por defecto antes de usar en producción.
-> Ve a 🔐 Admin → selecciona el usuario → Cambiar contraseña.
+>  Cambia los passwords por defecto antes de usar en producción.
+> Ve a  Admin → selecciona el usuario → Cambiar contraseña.
 
 ---
 
-## 🖥️ OPCIÓN 1 — Localhost (desarrollo y demo local)
+##  OPCIÓN 1 — Localhost (desarrollo y demo local)
 
 ### Requisitos
 - Windows 10/11 con WSL2 (Ubuntu 22.04+)
@@ -78,7 +76,7 @@ docker compose down -v      # reset completo (borra datos)
 
 ---
 
-## ☁️ OPCIÓN 2 — QA Gratuito en Render.com
+##  OPCIÓN 2 — QA Gratuito en Render.com
 
 ### Paso 1 — Crear base de datos PostgreSQL
 
@@ -110,7 +108,7 @@ docker compose down -v      # reset completo (borra datos)
    ```
 5. Clic **Create Web Service**
 
-> ⚠️ **Nota importante:** La URL de la DB debe empezar con `postgresql://`
+>  **Nota importante:** La URL de la DB debe empezar con `postgresql://`
 > Si Render la entrega como `postgres://`, el sistema la convierte automáticamente.
 
 ### Paso 3 — Verificar usuarios
@@ -139,12 +137,12 @@ Esto crea los usuarios por defecto `admin/admin123` y `cajero/cajero123`.
    GENERATE_SOURCEMAP = false
    ```
 
-> ⚠️ **Limitación del plan gratuito:** Los servicios se duermen tras 15 min sin uso.
+>  **Limitación del plan gratuito:** Los servicios se duermen tras 15 min sin uso.
 > La primera carga tarda ~30 segundos. Abre el link 1 min antes de una demo.
 
 ---
 
-## 🚀 OPCIÓN 3 — Producción con dominio propio (VPS)
+##  OPCIÓN 3 — Producción con dominio propio (VPS)
 
 ### Proveedores recomendados
 
@@ -223,7 +221,7 @@ certbot --nginx -d tudominio.com -d www.tudominio.com
 
 ---
 
-## 🔐 Login y roles
+##  Login y roles
 
 ### Usuarios por defecto
 | Usuario | Password | Rol | Acceso |
@@ -231,7 +229,7 @@ certbot --nginx -d tudominio.com -d www.tudominio.com
 | `admin` | `admin123` | Administrador | Todo el sistema |
 | `cajero` | `cajero123` | Cajero | Solo POS y Corte |
 
-> ⚠️ Cambia los passwords en producción desde 🔐 Admin → usuario → Cambiar contraseña
+>  Cambia los passwords en producción desde  Admin → usuario → Cambiar contraseña
 
 ### Permisos por rol
 | Módulo | Admin | Cajero |
@@ -250,13 +248,13 @@ certbot --nginx -d tudominio.com -d www.tudominio.com
 
 ## 🗑️ Reset de datos (solo Admin)
 
-Disponible en la pestaña **🔐 Admin**. Tres opciones con confirmación obligatoria:
+Disponible en la pestaña ** Admin**. Tres opciones con confirmación obligatoria:
 
 | Opción | Qué borra | Qué conserva |
 |---|---|---|
-| 🧾 Reset ventas | Ventas, cortes, detalles | Productos, clientes, proveedores |
-| 📦 Reset inventario | Productos, categorías, movimientos | Ventas, clientes, proveedores |
-| ⚠️ Reset total | Todo | Solo usuarios del sistema |
+|  Reset ventas | Ventas, cortes, detalles | Productos, clientes, proveedores |
+|  Reset inventario | Productos, categorías, movimientos | Ventas, clientes, proveedores |
+|  Reset total | Todo | Solo usuarios del sistema |
 
 El reset usa `DELETE` con SQLAlchemy en el orden correcto de foreign keys — funciona igual en localhost, QA y producción.
 
@@ -313,7 +311,7 @@ curl -X POST https://TU-SERVICIO.onrender.com/api/reset-users-emergency
 
 ---
 
-## 💰 Costos estimados
+##  Costos estimados
 
 | Escenario | Costo | Para qué |
 |---|---|---|
@@ -324,7 +322,7 @@ curl -X POST https://TU-SERVICIO.onrender.com/api/reset-users-emergency
 
 ---
 
-## 📄 Licencia
+##  Licencia
 
 MIT — libre para uso personal y comercial.
 
