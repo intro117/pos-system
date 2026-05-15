@@ -57,6 +57,7 @@ export const productosAPI = {
   movimientos: (id)   => api.get(`/productos/${id}/movimientos`),
   categorias:  ()     => api.get('/productos/categorias'),
   crearCat:    (d)    => api.post('/productos/categorias', d),
+  borrarCat:   (id)   => api.delete(`/productos/categorias/${id}`),
 };
 export const ventasAPI = {
   crear:     (d)  => api.post('/ventas/', d),

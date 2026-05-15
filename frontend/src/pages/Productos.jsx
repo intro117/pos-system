@@ -70,7 +70,7 @@ export default function Productos() {
 
   const borrarProducto = async (id) => {
     if (!window.confirm('¿Eliminar este producto?')) return;
-    try { await productosAPI.borrar(id); cargar(); }
+    try { await productosAPI.borrarCat(id); cargar(); }
     catch(e) { setError(e.message); }
   };
 
@@ -85,7 +85,7 @@ export default function Productos() {
 
   const borrarCategoria = async (id) => {
     if (!window.confirm('¿Eliminar esta categoría? Los productos asociados quedarán sin categoría.')) return;
-    try { await productosAPI.borrar(id); cargar(); }
+    try { await productosAPI.borrarCat(id); cargar(); }
     catch(e) { setError(e.message); }
   };
 
