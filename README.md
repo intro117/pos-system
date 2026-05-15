@@ -1128,3 +1128,4 @@ MIT — libre para uso personal y comercial.
 ---
 
 *Stack: FastAPI · React 18 · PostgreSQL · Werkzeug · Docker · Nginx*
+
