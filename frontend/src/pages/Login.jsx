@@ -25,7 +25,7 @@ export default function Login({ onLogin }) {
       <div style={{ background:'#1e293b', border:'1px solid #334155', borderRadius:16, padding:36, width:'100%', maxWidth:380 }}>
         <div style={{ textAlign:'center', marginBottom:28 }}>
           <div style={{ fontSize:40, marginBottom:8 }}>🏪</div>
-          <div style={{ fontSize:22, fontWeight:700, color:'#f1f5f9' }}>POS System</div>
+          <div style={{ fontSize:22, fontWeight:700, color:'#f1f5f9' }}>Sistema de Ventas</div>
           <div style={{ fontSize:13, color:'#64748b', marginTop:4 }}>Inicia sesión para continuar</div>
         </div>
 
@@ -58,10 +58,16 @@ export default function Login({ onLogin }) {
           </button>
         </form>
 
-        <div style={{ marginTop:20, padding:12, background:'#0f172a', borderRadius:8, fontSize:11, color:'#475569' }}>
+
+
+ {/* 
+       <div style={{ marginTop:20, padding:12, background:'#0f172a', borderRadius:8, fontSize:11, color:'#475569' }}>
           <div style={{ marginBottom:4 }}>👤 <b style={{color:'#64748b'}}>admin</b> / admin123 — Acceso completo</div>
           <div>👤 <b style={{color:'#64748b'}}>cajero</b> / cajero123 — Solo POS y Corte</div>
         </div>
+
+ */}
+
       </div>
     </div>
   );
