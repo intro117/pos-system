@@ -1,13 +1,12 @@
-
-#  POS System
+# POS System
 
 > Sistema de punto de venta completo, modular y personalizable.
 > Funciona en localhost, QA gratuito en la nube y producción con dominio propio.
 
-![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)
-![React](https://img.shields.io/badge/Frontend-React%2018-61DAFB?logo=react)
-![PostgreSQL](https://img.shields.io/badge/DB-PostgreSQL%2015-336791?logo=postgresql)
-![Docker](https://img.shields.io/badge/Deploy-Docker-2496ED?logo=docker)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/Frontend-React%2018-61DAFB?logo=react)](https://react.dev)
+[![PostgreSQL](https://img.shields.io/badge/DB-PostgreSQL%2015-336791?logo=postgresql)](https://www.postgresql.org)
+[![Docker](https://img.shields.io/badge/Deploy-Docker-2496ED?logo=docker)](https://www.docker.com)
 
 ---
 
@@ -19,6 +18,7 @@
 | 💰 Corte de caja | ✅ | ✅ |
 | 📦 Inventario | ✅ | ❌ |
 | 🏷️ Productos + imágenes | ✅ | ❌ |
+| 📂 Categorías (con ícono y color) | ✅ | ❌ |
 | 👥 Clientes | ✅ | ❌ |
 | 🚚 Proveedores | ✅ | ❌ |
 | 📊 Reportes y gráficas | ✅ | ❌ |
@@ -27,7 +27,7 @@
 
 ---
 
-##  Usuarios por defecto
+## Usuarios por defecto
 
 Al iniciar el sistema por primera vez se crean automáticamente:
 
@@ -36,14 +36,15 @@ Al iniciar el sistema por primera vez se crean automáticamente:
 | `admin` | `admin123` | Administrador | Todo el sistema |
 | `cajero` | `cajero123` | Cajero | Solo POS y Corte |
 
->  Cambia los passwords por defecto antes de usar en producción.
-> Ve a  Admin → selecciona el usuario → Cambiar contraseña.
+> Cambia los passwords por defecto antes de usar en producción.
+> Ve a Admin → selecciona el usuario → Cambiar contraseña.
 
 ---
 
-##  OPCIÓN 1 — Localhost (desarrollo y demo local)
+## OPCIÓN 1 — Localhost (desarrollo y demo local)
 
 ### Requisitos
+
 - Windows 10/11 con WSL2 (Ubuntu 22.04+)
 - Docker Desktop con integración WSL habilitada
 - Git
@@ -51,13 +52,14 @@ Al iniciar el sistema por primera vez se crean automáticamente:
 ### Instalación
 
 ```bash
-git clone https://github.com/TU_USUARIO/pos-system.git
+git clone https://github.com/intro117/pos-system.git
 cd pos-system
 chmod +x setup_all.sh
 bash setup_all.sh
 ```
 
 ### Acceso
+
 | Servicio | URL |
 |---|---|
 | Dashboard | http://localhost:3000 |
@@ -66,6 +68,7 @@ bash setup_all.sh
 | MinIO (imágenes) | http://localhost:9001 |
 
 ### Comandos útiles
+
 ```bash
 docker compose ps           # ver estado
 docker compose logs -f      # ver logs
@@ -76,7 +79,7 @@ docker compose down -v      # reset completo (borra datos)
 
 ---
 
-##  OPCIÓN 2 — QA Gratuito en Render.com
+## OPCIÓN 2 — QA Gratuito en Render.com
 
 ### Paso 1 — Crear base de datos PostgreSQL
 
@@ -92,57 +95,52 @@ docker compose down -v      # reset completo (borra datos)
 1. **New → Web Service**
 2. Connect repo: `pos-system`
 3. Configurar:
-   ```
-   Name:           pos-system-qa
-   Root Directory: backend
-   Runtime:        Docker
-   Plan:           Free
-   ```
+```
+Name:           pos-system-qa
+Root Directory: backend
+Runtime:        Docker
+Plan:           Free
+```
 4. **Environment Variables:**
-   ```
-   DATABASE_URL     = [Internal Database URL del paso 1]
-   MINIO_URL        = http://localhost:9000
-   MINIO_ACCESS_KEY = minioadmin
-   MINIO_SECRET_KEY = minioadmin123
-   SECRET_KEY       = una-clave-secreta-larga-aqui
-   ```
+```
+DATABASE_URL     = [Internal Database URL del paso 1]
+MINIO_URL        = http://localhost:9000
+MINIO_ACCESS_KEY = minioadmin
+MINIO_SECRET_KEY = minioadmin123
+SECRET_KEY       = una-clave-secreta-larga-aqui
+```
 5. Clic **Create Web Service**
 
->  **Nota importante:** La URL de la DB debe empezar con `postgresql://`
-> Si Render la entrega como `postgres://`, el sistema la convierte automáticamente.
+> **Nota:** La URL de la DB debe empezar con `postgresql://`. Si Render la entrega como `postgres://`, el sistema la convierte automáticamente.
 
 ### Paso 3 — Verificar usuarios
 
 Después del primer deploy, ejecuta:
-
 ```bash
 curl -X POST https://TU-SERVICIO.onrender.com/api/reset-users-emergency
 ```
-
-Esto crea los usuarios por defecto `admin/admin123` y `cajero/cajero123`.
 
 ### Paso 4 — Desplegar el frontend
 
 1. Edita `frontend/src/utils/api.js` — cambia `baseURL` a la URL de tu backend
 2. **New → Static Site** en Render
 3. Configurar:
-   ```
-   Root Directory:    frontend
-   Build Command:     npm install --legacy-peer-deps && npm install ajv@^8.12.0 ajv-keywords@^5.1.0 --legacy-peer-deps && npm run build
-   Publish Directory: build
-   ```
+```
+Root Directory:    frontend
+Build Command:     npm install --legacy-peer-deps && npm install ajv@^8.12.0 ajv-keywords@^5.1.0 --legacy-peer-deps && npm run build
+Publish Directory: build
+```
 4. Variables:
-   ```
-   CI                 = false
-   GENERATE_SOURCEMAP = false
-   ```
+```
+CI                 = false
+GENERATE_SOURCEMAP = false
+```
 
->  **Limitación del plan gratuito:** Los servicios se duermen tras 15 min sin uso.
-> La primera carga tarda ~30 segundos. Abre el link 1 min antes de una demo.
+> **Limitación del plan gratuito:** Los servicios se duermen tras 15 min sin uso. La primera carga tarda ~30 segundos.
 
 ---
 
-##  OPCIÓN 3 — Producción con dominio propio (VPS)
+## OPCIÓN 3 — Producción con dominio propio (VPS)
 
 ### Proveedores recomendados
 
@@ -160,10 +158,10 @@ ssh root@IP_DEL_VPS
 
 # Instalar Docker
 curl -fsSL https://get.docker.com | sh
-apt install -y docker-compose-plugin git
+apt install -y docker-compose-plugin git postgresql-client
 
 # Clonar proyecto
-git clone https://github.com/TU_USUARIO/pos-system.git
+git clone https://github.com/intro117/pos-system.git
 cd pos-system
 
 # Levantar
@@ -195,12 +193,86 @@ NGINX
 
 ln -s /etc/nginx/sites-available/pos /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
-
-# SSL gratis
 certbot --nginx -d tudominio.com -d www.tudominio.com
 ```
 
 **Resultado:** `https://tudominio.com` con SSL ✓
+
+---
+
+## 🗄️ Respaldo automático de base de datos
+
+El sistema incluye scripts de respaldo automático con `pg_dump`. Funcionan en localhost, VPS y cualquier servidor Linux.
+
+### Configuración rápida (una sola vez)
+
+```bash
+bash setup_backup.sh
+```
+
+Esto crea los scripts y configura el crontab automáticamente.
+
+### DATABASE_URL según entorno
+
+| Entorno | DATABASE_URL |
+|---|---|
+| **Localhost** (docker-compose) | `postgresql://posuser:pospass123@localhost:5432/posdb` |
+| **VPS / Producción** | `postgresql://usuario:password@localhost:5432/posdb` |
+| **Render QA** | URL interna de Render (ver dashboard) |
+
+> En producción, configura `DATABASE_URL` como variable de entorno del sistema o en `/etc/environment` para que el crontab la tome automáticamente.
+
+### Hacer un respaldo manual
+
+```bash
+# Localhost
+bash ~/pos-system/scripts/backup/backup_db.sh
+
+# Con URL personalizada (producción)
+DATABASE_URL="postgresql://usuario:pass@host:5432/db" bash ~/pos-system/scripts/backup/backup_db.sh
+```
+
+### Respaldo automático (crontab)
+
+El script `setup_backup.sh` configura automáticamente:
+
+```
+# Respaldo diario a las 2:00am
+0 2 * * * bash ~/pos-system/scripts/backup/backup_db.sh
+
+# Limpieza de log mensual
+0 0 1 * * truncate -s 0 ~/backups/pos-system/backup.log
+```
+
+Los respaldos se guardan en `~/backups/pos-system/` (o `/var/backups/pos-system/` si hay permisos) y se eliminan automáticamente después de **30 días**.
+
+### Ver log de respaldos
+
+```bash
+cat ~/backups/pos-system/backup.log
+ls -lh ~/backups/pos-system/
+```
+
+### Restaurar un respaldo
+
+```bash
+# Interactivo (te muestra los respaldos disponibles)
+bash ~/pos-system/scripts/backup/restore_db.sh
+
+# Con archivo específico
+bash ~/pos-system/scripts/backup/restore_db.sh ~/backups/pos-system/pos_20260515_020000.sql.gz
+```
+
+> ⚠️ La restauración sobreescribe la base de datos actual. El script pide confirmación antes de proceder.
+
+### Cambiar a producción
+
+Cuando migres de QA a producción, solo cambia la variable `DB_URL_DEFAULT` en `scripts/backup/backup_db.sh`:
+
+```bash
+# Línea a editar dentro del script:
+DB_URL_DEFAULT="postgresql://tu_usuario:tu_password@localhost:5432/tu_db"
+```
 
 ---
 
@@ -221,23 +293,17 @@ certbot --nginx -d tudominio.com -d www.tudominio.com
 
 ---
 
-##  Login y roles
-
-### Usuarios por defecto
-| Usuario | Password | Rol | Acceso |
-|---|---|---|---|
-| `admin` | `admin123` | Administrador | Todo el sistema |
-| `cajero` | `cajero123` | Cajero | Solo POS y Corte |
-
->  Cambia los passwords en producción desde  Admin → usuario → Cambiar contraseña
+## Login y roles
 
 ### Permisos por rol
+
 | Módulo | Admin | Cajero |
 |---|---|---|
 | 🛒 POS | ✅ | ✅ |
 | 💰 Corte de caja | ✅ | ✅ |
 | 📦 Inventario | ✅ | ❌ |
 | 🏷️ Productos | ✅ | ❌ |
+| 📂 Categorías | ✅ | ❌ |
 | 👥 Clientes | ✅ | ❌ |
 | 🚚 Proveedores | ✅ | ❌ |
 | 📊 Reportes | ✅ | ❌ |
@@ -248,13 +314,13 @@ certbot --nginx -d tudominio.com -d www.tudominio.com
 
 ## 🗑️ Reset de datos (solo Admin)
 
-Disponible en la pestaña ** Admin**. Tres opciones con confirmación obligatoria:
+Disponible en la pestaña **Admin**. Tres opciones con confirmación obligatoria:
 
 | Opción | Qué borra | Qué conserva |
 |---|---|---|
-|  Reset ventas | Ventas, cortes, detalles | Productos, clientes, proveedores |
-|  Reset inventario | Productos, categorías, movimientos | Ventas, clientes, proveedores |
-|  Reset total | Todo | Solo usuarios del sistema |
+| Reset ventas | Ventas, cortes, detalles | Productos, clientes, proveedores |
+| Reset inventario | Productos, categorías, movimientos | Ventas, clientes, proveedores |
+| Reset total | Todo | Solo usuarios del sistema |
 
 El reset usa `DELETE` con SQLAlchemy en el orden correcto de foreign keys — funciona igual en localhost, QA y producción.
 
@@ -302,16 +368,15 @@ Causa: Incompatibilidad de versión de bcrypt en algunos entornos
 Solución: El sistema usa werkzeug (pbkdf2:sha256) en lugar de bcrypt
 ```
 
-### Login da 401 después del primer deploy
+### pg_dump: command not found
 ```
-Causa: Los usuarios por defecto no se crearon correctamente
-Solución: Ejecutar el endpoint de emergencia:
-curl -X POST https://TU-SERVICIO.onrender.com/api/reset-users-emergency
+Causa: postgresql-client no está instalado
+Solución: sudo apt install -y postgresql-client
 ```
 
 ---
 
-##  Costos estimados
+## Costos estimados
 
 | Escenario | Costo | Para qué |
 |---|---|---|
@@ -322,11 +387,10 @@ curl -X POST https://TU-SERVICIO.onrender.com/api/reset-users-emergency
 
 ---
 
-##  Licencia
+## Licencia
 
 MIT — libre para uso personal y comercial.
 
 ---
 
 *Stack: FastAPI · React 18 · PostgreSQL · Werkzeug · Docker · Nginx*
-
