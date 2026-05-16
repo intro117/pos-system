@@ -103,60 +103,145 @@ docker compose down -v      # reset completo (borra todos los datos)
 
 ## OPCIÓN 2 — QA Gratuito en Render.com
 
-### Paso 1 — Crear base de datos PostgreSQL
+Render permite desplegar el backend y el frontend de forma gratuita. El proceso toma unos 10-15 minutos la primera vez.
 
-1. Ve a **https://render.com** → Sign up con GitHub
-2. **New → PostgreSQL**
-   - Name: `pos-system-db`
-   - Region: Oregon
-   - Plan: **Free**
-3. Copia la **Internal Database URL**
+> **Cuenta necesaria:** Entra a https://render.com y regístrate con tu cuenta de GitHub. No requiere tarjeta de crédito para el plan gratuito.
 
-### Paso 2 — Desplegar el backend
+---
 
-1. **New → Web Service** → conecta el repo `pos-system`
-2. Configurar:
-```
-Name:           pos-system-qa
-Root Directory: backend
-Runtime:        Docker
-Plan:           Free
-```
-3. **Environment Variables:**
-```
-DATABASE_URL     = [Internal Database URL del paso 1]
-MINIO_URL        = http://localhost:9000
-MINIO_ACCESS_KEY = minioadmin
-MINIO_SECRET_KEY = minioadmin123
-SECRET_KEY       = una-clave-secreta-larga-aqui
-```
-4. Clic **Create Web Service**
+### Paso 1 — Crear la base de datos PostgreSQL
 
-> Si Render entrega la URL como `postgres://`, el sistema la convierte a `postgresql://` automáticamente.
+1. Una vez dentro de Render, haz clic en el botón **New +** (esquina superior derecha)
+2. Selecciona **PostgreSQL**
+3. Llena los campos así:
 
-### Paso 3 — Crear usuarios por defecto
+| Campo | Valor |
+|---|---|
+| Name | `pos-system-db` |
+| Region | `Oregon (US West)` |
+| PostgreSQL Version | `15` |
+| Plan | `Free` |
+
+4. Haz clic en **Create Database** y espera ~1 minuto
+5. Una vez creada, busca la sección **Connections** en la página de la DB
+6. Copia el valor de **Internal Database URL** — se verá así:
+   ```
+   postgresql://posuser:AbCdEf123@dpg-xxxxx-a/posdb
+   ```
+   > Guarda esta URL, la necesitarás en el siguiente paso.
+
+---
+
+### Paso 2 — Desplegar el backend (API)
+
+1. Haz clic en **New +** → **Web Service**
+2. En la pantalla de selección de repo, elige **intro117/pos-system**
+3. Llena la configuración:
+
+| Campo | Valor |
+|---|---|
+| Name | `pos-system-qa` |
+| Region | `Oregon (US West)` |
+| Root Directory | `backend` |
+| Runtime | `Docker` |
+| Plan | `Free` |
+
+4. Baja hasta la sección **Environment Variables** y agrega estas variables una por una:
+
+| Variable | Valor |
+|---|---|
+| `DATABASE_URL` | La Internal Database URL del Paso 1 |
+| `MINIO_URL` | `http://localhost:9000` |
+| `MINIO_ACCESS_KEY` | `minioadmin` |
+| `MINIO_SECRET_KEY` | `minioadmin123` |
+| `SECRET_KEY` | Cualquier texto largo, ej: `mi-clave-super-secreta-2026` |
+
+5. Haz clic en **Create Web Service**
+6. Render comenzará a construir el contenedor. Verás los logs en tiempo real — espera hasta ver:
+   ```
+   Your service is live 🎉
+   ```
+7. Copia la URL de tu servicio — se verá así:
+   ```
+   https://pos-system-qa.onrender.com
+   ```
+
+> Si la URL de la DB empieza con `postgres://` (sin `ql`), no te preocupes — el sistema lo corrige automáticamente.
+
+---
+
+### Paso 3 — Crear los usuarios por defecto
+
+El primer deploy no crea los usuarios automáticamente. Ejecuta este comando **una sola vez** desde tu terminal (reemplaza la URL por la tuya):
 
 ```bash
-curl -X POST https://TU-SERVICIO.onrender.com/api/reset-users-emergency
+curl -X POST https://pos-system-qa.onrender.com/api/reset-users-emergency
 ```
 
-### Paso 4 — Desplegar el frontend
+Si responde con un mensaje de éxito, ya puedes iniciar sesión con `admin / admin123`.
 
-1. Edita `frontend/src/utils/api.js` — cambia `baseURL` a la URL de tu backend
-2. **New → Static Site** en Render
-3. Configurar:
-```
-Root Directory:    frontend
-Build Command:     npm install --legacy-peer-deps && npm install ajv@^8.12.0 ajv-keywords@^5.1.0 --legacy-peer-deps && npm run build
-Publish Directory: build
-```
-4. Variables de entorno:
-```
-CI                 = false
-GENERATE_SOURCEMAP = false
+> Si el servicio está dormido, la primera petición puede tardar 30-60 segundos. Espera y vuelve a intentarlo.
+
+---
+
+### Paso 4 — Conectar el frontend con el backend
+
+Antes de desplegar el frontend, actualiza la URL del backend en el código:
+
+1. Abre el archivo `frontend/src/utils/api.js` en tu editor
+2. Busca la línea que dice `baseURL` y cámbiala:
+
+```javascript
+// ANTES:
+baseURL: 'http://localhost:8000/api',
+
+// DESPUÉS (pon tu URL real de Render):
+baseURL: 'https://pos-system-qa.onrender.com/api',
 ```
 
-> Los servicios gratuitos se duermen tras 15 min sin uso. La primera carga tarda ~30 segundos.
+3. Guarda el archivo y haz commit:
+
+```bash
+git add frontend/src/utils/api.js
+git commit -m "config: apuntar frontend a backend de Render QA"
+git push origin main
+```
+
+---
+
+### Paso 5 — Desplegar el frontend
+
+1. En Render, haz clic en **New +** → **Static Site**
+2. Selecciona el repo **intro117/pos-system**
+3. Llena la configuración:
+
+| Campo | Valor |
+|---|---|
+| Name | `pos-system-frontend` |
+| Root Directory | `frontend` |
+| Build Command | `npm install --legacy-peer-deps && npm install ajv@^8.12.0 ajv-keywords@^5.1.0 --legacy-peer-deps && npm run build` |
+| Publish Directory | `build` |
+
+4. Agrega estas variables de entorno:
+
+| Variable | Valor |
+|---|---|
+| `CI` | `false` |
+| `GENERATE_SOURCEMAP` | `false` |
+
+5. Haz clic en **Create Static Site**
+6. El build tarda ~3-5 minutos. Al terminar verás la URL del frontend:
+   ```
+   https://pos-system-frontend.onrender.com
+   ```
+
+---
+
+### Verificar que todo funciona
+
+Abre la URL del frontend en el navegador e inicia sesión con `admin / admin123`. Si ves el dashboard, el despliegue fue exitoso ✅
+
+> **Limitación del plan gratuito:** Los servicios se "duermen" si no reciben tráfico por 15 minutos. La primera carga después de inactividad tarda ~30 segundos. Esto es normal en el plan gratuito.
 
 ---
 
@@ -413,66 +498,177 @@ Disponible en la pestaña **Admin**. Tres opciones con confirmación obligatoria
 
 ## 🛠️ Problemas conocidos y soluciones
 
-### `ajv/dist/compile/codegen` en build de React
+---
+
+### ❌ El frontend no carga o muestra pantalla en blanco
+
+**Síntoma:** Abres la URL del frontend y ves una pantalla blanca o error de red en el navegador.
+
+**Causa:** El frontend no puede conectarse al backend porque `baseURL` en `api.js` apunta a `localhost`.
+
+**Solución:**
+1. Abre `frontend/src/utils/api.js`
+2. Cambia `baseURL`:
+   ```javascript
+   baseURL: 'https://pos-system-qa.onrender.com/api',
+   ```
+3. Guarda, haz commit y push:
+   ```bash
+   git add frontend/src/utils/api.js
+   git commit -m "fix: corregir baseURL del frontend"
+   git push origin main
+   ```
+
+---
+
+### ❌ Login da error 401 tras el primer deploy
+
+**Síntoma:** Intentas entrar con `admin / admin123` y dice credenciales incorrectas.
+
+**Causa:** Los usuarios por defecto no se crearon al iniciar el servidor.
+
+**Solución:**
+```bash
+curl -X POST https://pos-system-qa.onrender.com/api/reset-users-emergency
 ```
-Causa: Incompatibilidad react-scripts 5 + Node 20
-Solución: Usar node:18-alpine en Dockerfile del frontend
-          Agregar ajv@^8 en package.json
+Espera la respuesta (puede tardar 30-60 seg si el servicio está dormido) e intenta iniciar sesión nuevamente.
+
+---
+
+### ❌ Build de React falla con error `ajv/dist/compile/codegen`
+
+**Síntoma:** En los logs de Render ves:
+```
+Cannot find module 'ajv/dist/compile/codegen'
 ```
 
-### `307 Temporary Redirect` en rutas de FastAPI
+**Causa:** Incompatibilidad entre `react-scripts 5` y Node.js 20+.
+
+**Solución:**
+1. Verifica que el Dockerfile del frontend use `node:18-alpine`
+2. Verifica que el Build Command en Render sea:
+   ```
+   npm install --legacy-peer-deps && npm install ajv@^8.12.0 ajv-keywords@^5.1.0 --legacy-peer-deps && npm run build
+   ```
+3. Guarda y haz push para que Render redespliege
+
+---
+
+### ❌ Las rutas de la API dan `307 Temporary Redirect`
+
+**Síntoma:** Algunas llamadas al backend redirigen en lugar de responder. Ves errores en la consola del navegador.
+
+**Causa:** FastAPI redirige rutas sin `/` al final. Ejemplo: `/api/config` → `/api/config/`.
+
+**Solución:**
+1. Abre `frontend/src/utils/api.js`
+2. Asegúrate de que todas las rutas terminen con `/`:
+   ```javascript
+   api.get('/config/')   // ✅ correcto
+   api.get('/config')    // ❌ incorrecto
+   ```
+3. Haz commit y push
+
+---
+
+### ❌ El reset de datos no borra nada en Render
+
+**Síntoma:** Haces reset desde Admin pero los datos siguen apareciendo.
+
+**Causa:** `TRUNCATE` requiere permisos de superusuario que Render no otorga en plan gratuito.
+
+**Solución:** El sistema ya usa `DELETE` con SQLAlchemy. Si el problema persiste, asegúrate de tener la versión más reciente:
+```bash
+git pull origin main
 ```
-Causa: FastAPI redirige /api/config → /api/config/
-Solución: Usar / al final en todas las URLs del api.js del frontend
+Y en Render haz un **Manual Deploy** desde el dashboard del servicio.
+
+---
+
+### ❌ `pg_dump: command not found`
+
+**Síntoma:**
+```
+ERROR: pg_dump no encontrado.
 ```
 
-### Reset no borra datos en Render (TRUNCATE falla)
-```
-Causa: TRUNCATE requiere permisos de superusuario (no disponibles en Render free)
-Solución: El sistema usa DELETE con SQLAlchemy en orden correcto de foreign keys
-          Funciona igual en localhost, Render QA y VPS
-```
-
-### Login da 401 después del primer deploy
-```
-Causa: Usuarios por defecto no se crearon correctamente
-Solución: curl -X POST https://TU-SERVICIO.onrender.com/api/reset-users-emergency
+**Solución:**
+```bash
+sudo apt install -y postgresql-client
+pg_dump --version   # verificar que quedó instalado
 ```
 
-### `postgres://` no reconocido por SQLAlchemy
+---
+
+### ❌ El respaldo da error de conexión en VPS
+
+**Síntoma:** El script corre pero termina con error y no genera el archivo `.sql.gz`.
+
+**Causa:** Credenciales incorrectas o PostgreSQL no está corriendo.
+
+**Solución:**
+1. Verifica que los contenedores estén corriendo:
+   ```bash
+   docker compose ps
+   ```
+2. Si PostgreSQL no está activo, levántalo:
+   ```bash
+   docker compose up -d
+   ```
+3. Verifica las credenciales:
+   ```bash
+   grep POSTGRES ~/pos-system/docker-compose.yml
+   ```
+4. Edita el script con las credenciales correctas:
+   ```bash
+   nano ~/pos-system/scripts/backup/backup_db.sh
+   ```
+
+---
+
+### ❌ `Permission denied` al hacer `git commit` o editar archivos
+
+**Síntoma:**
 ```
-Causa: Render entrega URLs con postgres:// en vez de postgresql://
-Solución: El database.py convierte automáticamente al iniciar
+fatal: could not open '.git/COMMIT_EDITMSG': Permission denied
 ```
 
-### `password cannot be longer than 72 bytes` (bcrypt)
-```
-Causa: Incompatibilidad de versión de bcrypt en algunos entornos
-Solución: El sistema usa werkzeug (pbkdf2:sha256) en lugar de bcrypt
+**Causa:** El repo fue clonado o modificado como `root`.
+
+**Solución:**
+```bash
+# Reemplaza "tu_usuario" con tu usuario real (ej: osiris)
+sudo chown -R tu_usuario:tu_usuario ~/pos-system
 ```
 
-### `pg_dump: command not found`
-```
-Solución: sudo apt install -y postgresql-client
-```
+---
 
-### Respaldo da error de conexión en VPS
-```
-Causa: Credenciales incorrectas o PostgreSQL no está corriendo
-Solución: Verificar docker compose ps y revisar DB_URL_DEFAULT en backup_db.sh
-```
+### ❌ WSL siempre abre sesión como root
 
-### Permission denied al hacer git commit
-```
-Causa: El repo fue clonado o modificado como root
-Solución: sudo chown -R tu_usuario:tu_usuario ~/pos-system
-```
+**Síntoma:** Cada vez que abres WSL entras como `root`.
 
-### WSL abre sesión como root en vez de tu usuario
-```
-Solución (PowerShell en Windows):
+**Solución:** En PowerShell de Windows ejecuta:
+```powershell
 ubuntu config --default-user tu_usuario
 ```
+Cierra y vuelve a abrir WSL.
+
+---
+
+### ❌ Git pide usuario y contraseña en cada push
+
+**Síntoma:** Cada `git push` pide credenciales.
+
+**Solución:**
+```bash
+git config --global user.email "tu-email@gmail.com"
+git config --global user.name "tu-usuario-github"
+git config --global credential.helper store
+```
+La próxima vez que ingreses usuario y token quedará guardado permanentemente.
+
+> GitHub ya no acepta passwords. Usa un **Personal Access Token**:
+> GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate → scope: `repo`
 
 ---
 
