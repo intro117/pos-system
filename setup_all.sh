@@ -37,7 +37,7 @@ hdr 3 "Generando archivos del backend"
 touch backend/app/__init__.py
 touch backend/app/routes/__init__.py
 
-cat > backend/requirements.txt << 'EOF'
+[ -f backend/requirements.txt ] && echo "  → respetando backend/requirements.txt existente" || cat > backend/requirements.txt << 'EOF'
 fastapi==0.110.0
 uvicorn==0.29.0
 sqlalchemy==2.0.29
@@ -47,7 +47,7 @@ boto3==1.34.74
 pydantic==2.6.4
 EOF
 
-cat > backend/Dockerfile << 'EOF'
+[ -f backend/Dockerfile ] && echo "  → respetando backend/Dockerfile existente" || cat > backend/Dockerfile << 'EOF'
 FROM python:3.11-slim
 WORKDIR /app
 COPY requirements.txt .
@@ -57,7 +57,7 @@ EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 EOF
 
-cat > backend/app/database.py << 'EOF'
+[ -f backend/app/database.py ] && echo "  → respetando backend/app/database.py existente" || cat > backend/app/database.py << 'EOF'
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -72,7 +72,7 @@ def get_db():
     finally: db.close()
 EOF
 
-cat > backend/app/models.py << 'EOF'
+[ -f backend/app/models.py ] && echo "  → respetando backend/app/models.py existente" || cat > backend/app/models.py << 'EOF'
 from sqlalchemy import Column,Integer,String,Float,Boolean,DateTime,ForeignKey,Text,Enum as SAEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -204,7 +204,7 @@ EOF
 ok "backend/app/models.py"
 
 # main.py
-cat > backend/app/main.py << 'EOF'
+[ -f backend/app/main.py ] && echo "  → respetando backend/app/main.py existente" || cat > backend/app/main.py << 'EOF'
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
@@ -225,7 +225,7 @@ EOF
 ok "backend/app/main.py"
 
 # routes/config.py
-cat > backend/app/routes/config.py << 'EOF'
+[ -f backend/app/routes/config.py ] && echo "  → respetando backend/app/routes/config.py existente" || cat > backend/app/routes/config.py << 'EOF'
 from fastapi import APIRouter,Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -256,7 +256,7 @@ EOF
 ok "backend/app/routes/config.py"
 
 # routes/clientes.py
-cat > backend/app/routes/clientes.py << 'EOF'
+[ -f backend/app/routes/clientes.py ] && echo "  → respetando backend/app/routes/clientes.py existente" || cat > backend/app/routes/clientes.py << 'EOF'
 from fastapi import APIRouter,Depends,HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -290,7 +290,7 @@ EOF
 ok "backend/app/routes/clientes.py"
 
 # routes/proveedores.py
-cat > backend/app/routes/proveedores.py << 'EOF'
+[ -f backend/app/routes/proveedores.py ] && echo "  → respetando backend/app/routes/proveedores.py existente" || cat > backend/app/routes/proveedores.py << 'EOF'
 from fastapi import APIRouter,Depends,HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -315,7 +315,7 @@ EOF
 ok "backend/app/routes/proveedores.py"
 
 # routes/inventario.py
-cat > backend/app/routes/inventario.py << 'EOF'
+[ -f backend/app/routes/inventario.py ] && echo "  → respetando backend/app/routes/inventario.py existente" || cat > backend/app/routes/inventario.py << 'EOF'
 from fastapi import APIRouter,Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -336,7 +336,7 @@ EOF
 ok "backend/app/routes/inventario.py"
 
 # routes/reportes.py
-cat > backend/app/routes/reportes.py << 'EOF'
+[ -f backend/app/routes/reportes.py ] && echo "  → respetando backend/app/routes/reportes.py existente" || cat > backend/app/routes/reportes.py << 'EOF'
 from fastapi import APIRouter,Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func,cast,Date
@@ -368,7 +368,7 @@ ok "Backend completo"
 # ─────────────────────────────────────────────────────────
 hdr 4 "Generando archivos del frontend"
 
-cat > frontend/package.json << 'EOF'
+[ -f frontend/package.json ] && echo "  → respetando frontend/package.json existente" || cat > frontend/package.json << 'EOF'
 {
   "name":"pos-system","version":"1.0.0","private":true,
   "dependencies":{"react":"^18.2.0","react-dom":"^18.2.0",
@@ -380,7 +380,7 @@ cat > frontend/package.json << 'EOF'
 }
 EOF
 
-cat > frontend/Dockerfile << 'EOF'
+[ -f frontend/Dockerfile ] && echo "  → respetando frontend/Dockerfile existente" || cat > frontend/Dockerfile << 'EOF'
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY package.json .
@@ -393,7 +393,7 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 EOF
 
-cat > frontend/nginx.conf << 'EOF'
+[ -f frontend/nginx.conf ] && echo "  → respetando frontend/nginx.conf existente" || cat > frontend/nginx.conf << 'EOF'
 server {
     listen 80;
     root /usr/share/nginx/html;
@@ -411,7 +411,7 @@ server {
 }
 EOF
 
-cat > frontend/public/index.html << 'EOF'
+[ -f frontend/public/index.html ] && echo "  → respetando frontend/public/index.html existente" || cat > frontend/public/index.html << 'EOF'
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -430,7 +430,7 @@ cat > frontend/public/index.html << 'EOF'
 </html>
 EOF
 
-cat > frontend/src/index.js << 'EOF'
+[ -f frontend/src/index.js ] && echo "  → respetando frontend/src/index.js existente" || cat > frontend/src/index.js << 'EOF'
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -444,7 +444,7 @@ ok "Frontend base listo"
 # ─────────────────────────────────────────────────────────
 hdr 5 "Generando docker-compose.yml"
 
-cat > docker-compose.yml << 'EOF'
+[ -f docker-compose.yml ] && echo "  → respetando docker-compose.yml existente" || cat > docker-compose.yml << 'EOF'
 version: "3.8"
 services:
   postgres:
