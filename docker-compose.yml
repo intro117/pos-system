@@ -1,16 +1,19 @@
 version: "3.8"
+
 services:
   postgres:
     image: postgres:15-alpine
     container_name: pos-postgres
     environment:
-      POSTGRES_DB: posdb
-      POSTGRES_USER: posuser
-      POSTGRES_PASSWORD: pospass123
-    volumes: [pg_data:/var/lib/postgresql/data]
-    networks: [pos-net]
+      POSTGRES_DB:       ${POSTGRES_DB:-posdb}
+      POSTGRES_USER:     ${POSTGRES_USER:-posuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pospass123}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - pos-net
     healthcheck:
-      test: ["CMD-SHELL","pg_isready -U posuser -d posdb"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-posuser} -d ${POSTGRES_DB:-posdb}"]
       interval: 10s
       retries: 15
 
@@ -19,35 +22,48 @@ services:
     container_name: pos-minio
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin123
-    ports: ["9000:9000","9001:9001"]
-    volumes: [minio_data:/data]
-    networks: [pos-net]
+      MINIO_ROOT_USER:     ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - pos-net
 
   backend:
-    build: {context: ./backend}
+    build:
+      context: ./backend
     container_name: pos-backend
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql://posuser:pospass123@postgres:5432/posdb
-      MINIO_URL: http://minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin123
-    ports: ["8000:8000"]
+      DATABASE_URL: postgresql://${POSTGRES_USER:-posuser}:${POSTGRES_PASSWORD:-pospass123}@postgres:5432/${POSTGRES_DB:-posdb}
+      MINIO_URL:    http://minio:9000
+    ports:
+      - "8000:8000"
     depends_on:
-      postgres: {condition: service_healthy}
-    networks: [pos-net]
+      postgres:
+        condition: service_healthy
+    networks:
+      - pos-net
 
   frontend:
-    build: {context: ./frontend}
+    build:
+      context: ./frontend
     container_name: pos-frontend
-    ports: ["3000:80"]
-    depends_on: [backend]
-    networks: [pos-net]
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - pos-net
 
 volumes:
   pg_data:
   minio_data:
+
 networks:
   pos-net:
     driver: bridge

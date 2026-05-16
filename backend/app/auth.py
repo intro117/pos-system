@@ -1,3 +1,5 @@
+import os
+import logging
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -7,13 +9,15 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Usuario
-import os
 
-SECRET_KEY     = os.getenv("SECRET_KEY", "pos-system-secret-key-2024")
+logger = logging.getLogger(__name__)
+
+# SECRET_KEY tomada del entorno — main.py ya validó que existe
+SECRET_KEY     = os.getenv("SECRET_KEY", "pos-dev-key-insegura-cambiar-en-produccion")
 ALGORITHM      = "HS256"
 EXPIRE_MINUTES = 480
 
-oauth2_scheme  = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 def hash_password(password: str) -> str:
     return generate_password_hash(password, method="pbkdf2:sha256")
