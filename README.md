@@ -76,6 +76,11 @@ Al iniciar el sistema por primera vez se crean automáticamente:
 ```bash
 git clone https://github.com/intro117/pos-system.git
 cd pos-system
+
+# Copiar el archivo de variables de entorno
+cp .env.example .env
+# Editar .env con tus valores (opcional para localhost, los defaults funcionan)
+
 chmod +x setup_all.sh
 bash setup_all.sh
 ```
@@ -154,7 +159,9 @@ Render permite desplegar el backend y el frontend de forma gratuita. El proceso 
 | `MINIO_URL` | `http://localhost:9000` |
 | `MINIO_ACCESS_KEY` | `minioadmin` |
 | `MINIO_SECRET_KEY` | `minioadmin123` |
-| `SECRET_KEY` | Cualquier texto largo, ej: `mi-clave-super-secreta-2026` |
+| `SECRET_KEY` | Genera con: `python3 -c "import secrets; print(secrets.token_hex(32))"` |
+| `ALLOWED_ORIGINS` | La URL de tu frontend en Render (la obtienes en el Paso 5) |
+| `EMERGENCY_KEY` | Genera con: `python3 -c "import secrets; print(secrets.token_hex(16))"` |
 
 5. Haz clic en **Create Web Service**
 6. Render comenzará a construir el contenedor. Verás los logs en tiempo real — espera hasta ver:
@@ -172,10 +179,11 @@ Render permite desplegar el backend y el frontend de forma gratuita. El proceso 
 
 ### Paso 3 — Crear los usuarios por defecto
 
-El primer deploy no crea los usuarios automáticamente. Ejecuta este comando **una sola vez** desde tu terminal (reemplaza la URL por la tuya):
+El primer deploy no crea los usuarios automáticamente. Ejecuta este comando **una sola vez** (reemplaza la URL y la clave):
 
 ```bash
-curl -X POST https://pos-system-qa.onrender.com/api/reset-users-emergency
+curl -X POST https://pos-system-qa.onrender.com/api/reset-users-emergency \
+     -H "X-Emergency-Key: tu-emergency-key-aqui"
 ```
 
 Si responde con un mensaje de éxito, ya puedes iniciar sesión con `admin / admin123`.
@@ -237,6 +245,19 @@ git push origin main
 
 ---
 
+### Paso 6 — Actualizar ALLOWED_ORIGINS con la URL del frontend
+
+Una vez que tengas la URL real del frontend, regresa al backend en Render y actualiza la variable:
+
+1. Render → **pos-system-qa** → **Environment**
+2. Edita `ALLOWED_ORIGINS` con la URL exacta de tu frontend (sin `/` al final):
+   ```
+   https://pos-system-frontend-xxxx.onrender.com,http://localhost:3000
+   ```
+3. Haz clic en **Save Changes** → Render redesplegará automáticamente
+
+---
+
 ### Verificar que todo funciona
 
 Abre la URL del frontend en el navegador e inicia sesión con `admin / admin123`. Si ves el dashboard, el despliegue fue exitoso ✅
@@ -265,13 +286,41 @@ ssh root@IP_DEL_VPS
 curl -fsSL https://get.docker.com | sh
 apt install -y docker-compose-plugin git postgresql-client
 
-# 3. Clonar y levantar
+# 3. Clonar el proyecto
 git clone https://github.com/intro117/pos-system.git
 cd pos-system
+
+# 4. Configurar variables de entorno
+cp .env.example .env
+nano .env   # editar con tus valores reales de producción
+
+# 5. Levantar
 docker compose up -d --build
 
-# 4. Verificar
+# 6. Verificar
 curl http://localhost:8000/api/health
+```
+
+### Variables de entorno para producción
+
+Edita el archivo `.env` con valores seguros:
+
+```bash
+# Generar claves seguras
+python3 -c "import secrets; print(secrets.token_hex(32))"   # para SECRET_KEY
+python3 -c "import secrets; print(secrets.token_hex(16))"   # para EMERGENCY_KEY
+```
+
+Las variables más importantes a cambiar en `.env`:
+
+```
+POSTGRES_PASSWORD=password-seguro-aqui
+MINIO_ROOT_PASSWORD=password-seguro-aqui
+MINIO_SECRET_KEY=password-seguro-aqui
+MINIO_PUBLIC_URL=http://tudominio.com:9000
+SECRET_KEY=clave-larga-y-aleatoria-de-64-caracteres
+ALLOWED_ORIGINS=https://tudominio.com,https://www.tudominio.com
+EMERGENCY_KEY=clave-aleatoria-para-emergencias
 ```
 
 ### Nginx + SSL gratuito
@@ -300,6 +349,52 @@ certbot --nginx -d tudominio.com -d www.tudominio.com
 ```
 
 **Resultado:** `https://tudominio.com` con SSL ✓
+
+---
+
+## 🔐 Variables de entorno
+
+El sistema usa un archivo `.env` para todas las configuraciones sensibles. Este archivo **nunca sube a GitHub** (está en `.gitignore`).
+
+### Configuración inicial
+
+```bash
+cp .env.example .env
+```
+
+### Variables por entorno
+
+| Variable | Localhost | Render QA | VPS Producción |
+|---|---|---|---|
+| `DATABASE_URL` | automática (docker-compose) | Internal URL de Render | `postgresql://user:pass@localhost:5432/db` |
+| `SECRET_KEY` | cualquier valor | generar aleatoria | generar aleatoria |
+| `ALLOWED_ORIGINS` | `http://localhost:3000` | URL del frontend en Render | `https://tudominio.com` |
+| `EMERGENCY_KEY` | cualquier valor | generar aleatoria | generar aleatoria |
+| `MINIO_PUBLIC_URL` | `http://localhost:9000` | no aplica | `http://tudominio.com:9000` |
+
+### Generar claves seguras
+
+```bash
+# SECRET_KEY (64 caracteres)
+python3 -c "import secrets; print(secrets.token_hex(32))"
+
+# EMERGENCY_KEY (32 caracteres)
+python3 -c "import secrets; print(secrets.token_hex(16))"
+```
+
+### Usar el endpoint de emergencia
+
+El endpoint `/api/reset-users-emergency` ahora requiere un header de autenticación:
+
+```bash
+# Localhost
+curl -X POST http://localhost:8000/api/reset-users-emergency \
+     -H "X-Emergency-Key: $(grep EMERGENCY_KEY .env | cut -d= -f2)"
+
+# Render QA
+curl -X POST https://pos-system-qa.onrender.com/api/reset-users-emergency \
+     -H "X-Emergency-Key: tu-emergency-key"
+```
 
 ---
 
@@ -411,7 +506,7 @@ DB_URL_DEFAULT="postgresql://posuser:pospass123@localhost:5432/posdb"
 DB_URL_DEFAULT="postgresql://tu_usuario:tu_password@localhost:5432/tu_db"
 ```
 
-> Las credenciales están en `docker-compose.yml` bajo `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`.
+> Las credenciales están en tu archivo `.env` bajo `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`.
 
 **Paso 3 — Probar conexión**
 ```bash
@@ -437,14 +532,6 @@ cat ~/backups/pos-system/backup.log
 ```
 
 ---
-
-### DATABASE_URL por entorno
-
-| Entorno | DATABASE_URL |
-|---|---|
-| **Localhost** (docker-compose) | `postgresql://posuser:pospass123@localhost:5432/posdb` |
-| **VPS / Producción** | `postgresql://tu_usuario:tu_password@localhost:5432/tu_db` |
-| **Render QA** | URL interna del dashboard de Render |
 
 ### Comandos rápidos
 
@@ -529,9 +616,32 @@ Disponible en la pestaña **Admin**. Tres opciones con confirmación obligatoria
 
 **Solución:**
 ```bash
-curl -X POST https://pos-system-qa.onrender.com/api/reset-users-emergency
+curl -X POST https://pos-system-qa.onrender.com/api/reset-users-emergency \
+     -H "X-Emergency-Key: tu-emergency-key"
 ```
 Espera la respuesta (puede tardar 30-60 seg si el servicio está dormido) e intenta iniciar sesión nuevamente.
+
+---
+
+### ❌ Error de CORS — el frontend no puede llamar al backend
+
+**Síntoma:** En la consola del navegador (F12) ves errores como:
+```
+Access to fetch at '...' from origin '...' has been blocked by CORS policy
+```
+
+**Causa:** La URL del frontend no está en la lista `ALLOWED_ORIGINS` del backend.
+
+**Solución:**
+1. Ve a Render → tu backend → **Environment**
+2. Edita o agrega `ALLOWED_ORIGINS` con la URL exacta de tu frontend (sin `/` al final):
+   ```
+   https://tu-frontend.onrender.com,http://localhost:3000
+   ```
+3. Haz **Save Changes** — Render redesplegará automáticamente
+4. Espera ~2 minutos y recarga el frontend
+
+> El preflight OPTIONS debe incluir el header `Access-Control-Request-Headers`. Si el problema persiste, verifica que el frontend esté enviando `authorization` y `content-type` en las peticiones.
 
 ---
 
@@ -615,9 +725,9 @@ pg_dump --version   # verificar que quedó instalado
    ```bash
    docker compose up -d
    ```
-3. Verifica las credenciales:
+3. Verifica las credenciales en tu `.env`:
    ```bash
-   grep POSTGRES ~/pos-system/docker-compose.yml
+   cat ~/pos-system/.env | grep POSTGRES
    ```
 4. Edita el script con las credenciales correctas:
    ```bash
@@ -669,6 +779,20 @@ La próxima vez que ingreses usuario y token quedará guardado permanentemente.
 
 > GitHub ya no acepta passwords. Usa un **Personal Access Token**:
 > GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate → scope: `repo`
+
+---
+
+### ❌ La sección de Reportes carga y desaparece
+
+**Síntoma:** Entras a Reportes, aparece un segundo y la pantalla queda en blanco.
+
+**Causa:** El componente llama a `ventasAPI.listar()` que ahora retorna un objeto paginado `{ total, items }` en lugar de un array, y `ventas.filter()` explota.
+
+**Solución:** Asegúrate de tener la versión más reciente del frontend:
+```bash
+git pull origin main
+docker compose up -d --build frontend
+```
 
 ---
 
