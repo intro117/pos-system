@@ -121,11 +121,3 @@ def reset_users(x_emergency_key: str = Header(default="")):
     finally:
         db.close()
 
-@app.get("/api/debug-cors")
-def debug_cors():
-    import os
-    return {
-        "allowed_origins": ALLOWED_ORIGINS,
-        "origins_env": os.getenv("ALLOWED_ORIGINS", "NO DEFINIDA"),
-        "secret_key_set": bool(os.getenv("SECRET_KEY")),
-    }
