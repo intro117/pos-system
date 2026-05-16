@@ -10,7 +10,7 @@ export default function Reportes() {
   const [error,  setError]  = useState('');
   useEffect(() => {
     Promise.all([reportesAPI.dashboard(), ventasAPI.listar({limit:20})])
-      .then(([d,v]) => { setDash(d); setVentas(v); })
+      .then(([d,v]) => { setDash(d); setVentas(Array.isArray(v) ? v : (v.items ?? [])); })
       .catch(e => setError(e.message));
   }, []);
   if (!dash) return <div style={{color:'#64748b',padding:32,textAlign:'center'}}>Cargando reportes...</div>;
