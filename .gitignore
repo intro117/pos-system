@@ -10,3 +10,5 @@ minio_data/
 .DS_Store
 Thumbs.db
 data/
+fix_amarillos.sh
+fix_rojos.sh
